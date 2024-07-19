@@ -4,6 +4,19 @@ output: html_document
 date: "2024-07-17"
 ---
 
+## Install Packages
+```{r}
+install.packages("caret")
+install.packages("missForest")
+install.packages("dplyr")
+install.packages("e1071")
+install.packages("randomForest")
+install.packages("gbm")
+install.packages("mice")
+install.packages("Hmisc")
+```
+
+## Load Libraries
 ```{r}
 library(caret)
 library(missForest)
@@ -16,15 +29,15 @@ library(Hmisc)
 library(missForest)
 ```
 
-## Remove unused features
+## Create test file
 ```{r}
-df<- read.csv("all_years_leafs_final.csv")
+df<- read.csv("C:\\Users\\malisa\\Downloads\\all_years_leafs_final.csv")
 
 remove_columns<- c("X",	"Season", "Plant_ID", "Genotype_ID_C", "Origin_Single",	"Origin_Grouped_by_Climate",	"Origin_Grouped_by_Region",	"Genetic_Origin")
 
 df <- df[,-which(names(df) %in% remove_columns)]
 
-write.csv(df, "/Users/malisalo/Documents/REEU2024/user_input_test.csv", row.names = FALSE)
+write.csv(df, "C:\\Users\\malisa\\Downloads\\user_input_test.csv", row.names = FALSE)
 ```
 
 ## Data Imputations Methods
@@ -95,9 +108,7 @@ create_gbm <- function(data, predicting_var, training_split) {
   
   # Print confusion matrix and overall accuracy
   print("Gradient Boosting")
-  
   cat("Accuracy:", round(cm_gbm$overall['Accuracy'] * 100, 2), "%\n")
-  print(cm_gbm)
   
   # Optionally return the tuned model and confusion matrix
   # return(list(model = gbm_model, confusion_matrix = cm_gbm))
@@ -192,7 +203,6 @@ create_knn <- function(data, predicting_var, training_split) {
   
   # Print confusion matrix and overall accuracy
   print("KNN")
-  # print(cm_knn)
   cat("Accuracy:", round(cm_knn$overall['Accuracy'] * 100, 2), "%\n")
   
   # Optionally return the tuned model and confusion matrix
@@ -232,7 +242,6 @@ create_svm <- function(data, predicting_var, training_split) {
   
   # Print confusion matrix and accuracy
   print("SVM")
-  # print(cm)
   cat("Accuracy:", round(cm$overall['Accuracy'] * 100, 2), "%\n")
   
   # return(list(model = svm_model, confusion_matrix = cm))
@@ -256,11 +265,6 @@ if (!is.null(selected_file)) {
   print("No file selected.")
 }
 
-user_data <- user_data %>%
-    mutate_if(is.character, as.factor)
-
-# str(user_data)
-
 # Prompt the user for input
 user_predicting <- readline(prompt = "What variable do you want to predict: ")
 
@@ -269,14 +273,15 @@ user_imputation<- readline(prompt = "Pick the missing data imputation Technique:
 user_split<- as.numeric(readline(prompt = "Pick split:"))
 
 # Add more data inputs...
+user_data <- user_data %>%
+    mutate_if(is.character, as.factor)
 
-user_clean<- perform_imputation(user_imputation, user_data)
+user_data<- perform_imputation(user_imputation, user_data)
 
 # create_rf(user_clean, user_predicting, user_split)
-# create_knn(user_clean, user_predicting, user_split)
-# create_svm(user_clean, user_predicting, user_split)
-# create_gbm(user_clean, user_predicting, user_split)
-create_rf(user_clean, user_predicting, user_split)
+create_knn(user_data, user_predicting, user_split)
+create_svm(user_data, user_predicting, user_split)
+create_gbm(user_data, user_predicting, user_split)
 ```
 
 
