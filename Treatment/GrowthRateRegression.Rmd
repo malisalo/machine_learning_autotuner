@@ -1,0 +1,116 @@
+---
+title: "GrowthDataPredict"
+author: "Joe"
+date: "2024-07-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(maptools)
+library(ggplot2)
+library(raster)
+library(psych)
+library(gmodels)
+library(FactoMineR) #library for conducting PCA
+library(factoextra) # library for plotting PCA
+library(missMDA) #for imputing if you have missing data
+library(hyperoverlap)
+library(Rmisc)
+library(car)
+library(dplyr)
+library(ggplot2)
+library(caret)
+library(MuMIn)
+library(drc)
+library(rcompanion)
+library(nlstools)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+growth_data<- read.csv("allyears_growthratedata.csv")
+str(growth_data)
+summary(growth_data)
+head(growth_data)
+```
+
+```{r}
+
+# Remove rows with missing values
+growth_data <- na.omit(growth_data)
+growth_data <- growth_data %>%
+  mutate(Season_Year = paste(Season, Year, sep = "_"))
+
+# Summary after cleaning
+summary(growth_data)
+
+# Exploratory Data Analysis (EDA)
+# Scatter plot to examine relationship between some variables and growth rate
+ggplot(growth_data, aes(x = Season_Year, y = GrowthRate, color = Treatment)) +
+  geom_point() +
+  facet_wrap(~Genotype_ID) +
+  theme_minimal()
+
+# Correlation matrix
+cor_matrix <- cor(growth_data %>% select_if(is.numeric))
+print(cor_matrix)
+
+# Build a linear regression model
+model <- lm(GrowthRate ~ Season_Year + Treatment + Genotype_ID, data = growth_data)
+
+# Summary of the model
+summary(model)
+
+# Predicted vs Actual plot
+predicted_values <- predict(model, growth_data)
+ggplot(growth_data, aes(x = GrowthRate, y = predicted_values)) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, color = "red") +
+  labs(x = "Actual Growth Rate", y = "Predicted Growth Rate") +
+  theme_minimal()
+
+# Calculate performance metrics
+mse <- mean((growth_data$Growth_Rate - predicted_values)^2)
+rmse <- sqrt(mse)
+cat("RMSE:", rmse, "\n")
+```
+```{r}
+# Split the data into training (70%) and test (30%) sets
+set.seed(123) # For reproducibility
+trainIndex <- createDataPartition(growth_data$GrowthRate, p = 0.7, list = FALSE)
+train_data <- growth_data[trainIndex, ]
+test_data <- growth_data[-trainIndex, ]
+
+# Build a linear regression model on the training set
+model <- lm(GrowthRate ~ Season_Year + Treatment + Genotype_ID, data = train_data)
+
+# Summary of the model
+summary(model)
+
+# Make predictions on the test set
+predicted_values <- predict(model, test_data)
+
+# Predicted vs Actual plot
+ggplot(test_data, aes(x = GrowthRate, y = predicted_values)) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, color = "red") +
+  labs(x = "Actual Growth Rate", y = "Predicted Growth Rate") +
+  theme_minimal()
+
+# Calculate performance metrics on the test set
+mse <- mean((test_data$GrowthRate - predicted_values)^2)
+rmse <- sqrt(mse)
+mae <- mean(abs(test_data$GrowthRate - predicted_values))
+
+cat("MSE:", mse, "\n")
+cat("RMSE:", rmse, "\n")
+cat("MAE:", mae, "\n")
+```
+

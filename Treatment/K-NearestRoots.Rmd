@@ -1,0 +1,115 @@
+---
+title: "K-NearestRoots"
+author: "Joe"
+date: "2024-07-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(caret)
+library(class)
+library(dplyr)
+```
+
+```{r}
+data2 <- read.csv('all_years_roots_final - all_years_roots_final.csv')
+summary(data2)
+str(data2)
+```
+
+```{r}
+columns <- c( "Number.of.Branch.Points", "Total.Root.Length.mm",
+  "Branching.frequency.per.mm", "Network.Area.mm2", "Average.Diameter.mm",
+  "Median.Diameter.mm", "Maximum.Diameter.mm", "Perimeter.mm", "Volume.mm3",
+  "Surface.Area.mm2", "Computation.Time.s", "Root.Length.Diameter.Range.1.mm",
+  "Root.Length.Diameter.Range.2.mm", "Root.Length.Diameter.Range.3.mm",
+  "Projected.Area.Diameter.Range.1.mm2", "Projected.Area.Diameter.Range.2.mm2",
+  "Projected.Area.Diameter.Range.3.mm2", "Surface.Area.Diameter.Range.1.mm2",
+  "Surface.Area.Diameter.Range.2.mm2", "Surface.Area.Diameter.Range.3.mm2",
+  "Volume.Diameter.Range.1.mm3", "Volume.Diameter.Range.2.mm3",
+  "Volume.Diameter.Range.3.mm3"
+)
+
+data2 <- data2 %>%
+  mutate_at(vars(one_of(columns)), as.integer)
+
+data2 <- data2 %>%
+  mutate_at(vars(one_of(columns)), ~ifelse(is.na(.), median(., na.rm = TRUE), .))
+
+data2$Treatment <- as.factor(data2$Treatment)
+data2$Genotype_ID <- as.factor(data2$Genotype_ID)
+
+set.seed(123)
+train_index <- createDataPartition(data2$Treatment, p = 0.8, list = FALSE)
+train_data <- data2[train_index, ]
+test_data <- data2[-train_index, ]
+
+train_data[columns] <- scale(train_data[columns])
+test_data[columns] <- scale(test_data[columns])
+
+predictor_columns <- c("Number.of.Branch.Points", "Total.Root.Length.mm",
+  "Branching.frequency.per.mm", "Network.Area.mm2", "Average.Diameter.mm",
+  "Median.Diameter.mm", "Maximum.Diameter.mm", "Perimeter.mm", "Volume.mm3",
+  "Surface.Area.mm2", "Computation.Time.s", "Root.Length.Diameter.Range.1.mm",
+  "Root.Length.Diameter.Range.2.mm", "Root.Length.Diameter.Range.3.mm",
+  "Projected.Area.Diameter.Range.1.mm2", "Projected.Area.Diameter.Range.2.mm2",
+  "Projected.Area.Diameter.Range.3.mm2", "Surface.Area.Diameter.Range.1.mm2",
+  "Surface.Area.Diameter.Range.2.mm2", "Surface.Area.Diameter.Range.3.mm2",
+  "Volume.Diameter.Range.1.mm3", "Volume.Diameter.Range.2.mm3",
+  "Volume.Diameter.Range.3.mm3" )
+
+train_x2 <- train_data[, predictor_columns]
+train_y2 <- train_data$Treatment
+test_x2 <- test_data[, predictor_columns]
+test_y2 <- test_data$Treatment
+
+knn_pred <- knn(train = train_x2, test = test_x2, cl = train_y2, k = 5)
+
+conf_matrix <- confusionMatrix(knn_pred, test_y2)
+print(conf_matrix)
+
+```
+
+
+```{r}
+columns <- c( "Number.of.Branch.Points", "Total.Root.Length.mm",
+  "Branching.frequency.per.mm", "Network.Area.mm2", "Average.Diameter.mm",
+  "Median.Diameter.mm", "Maximum.Diameter.mm", "Perimeter.mm", "Volume.mm3",
+  "Surface.Area.mm2", "Computation.Time.s", "Root.Length.Diameter.Range.1.mm",
+  "Root.Length.Diameter.Range.2.mm", "Root.Length.Diameter.Range.3.mm",
+  "Projected.Area.Diameter.Range.1.mm2", "Projected.Area.Diameter.Range.2.mm2",
+  "Projected.Area.Diameter.Range.3.mm2", "Surface.Area.Diameter.Range.1.mm2",
+  "Surface.Area.Diameter.Range.2.mm2", "Surface.Area.Diameter.Range.3.mm2",
+  "Volume.Diameter.Range.1.mm3", "Volume.Diameter.Range.2.mm3",
+  "Volume.Diameter.Range.3.mm3"
+)
+
+data2 <- data2 %>%
+  mutate_at(vars(one_of(columns)), as.integer)
+
+data2 <- data2 %>%
+  mutate_at(vars(one_of(columns)), ~ifelse(is.na(.), median(., na.rm = TRUE), .))
+
+data2$Treatment <- as.factor(data2$Treatment)
+data2$Genotype_ID <- as.factor(data2$Genotype_ID)
+
+set.seed(123)
+train_index <- createDataPartition(data2$Treatment, p = 0.8, list = FALSE)
+train_data <- data2[train_index, ]
+test_data <- data2[-train_index, ]
+
+train_data[columns] <- scale(train_data[columns])
+test_data[columns] <- scale(test_data[columns])
+
+train_x2 <- train_data[, columns]
+train_y2 <- train_data$Treatment
+test_x2 <- test_data[, columns]
+test_y2 <- test_data$Treatment
+
+knn_pred <- knn(train = train_x2, test = test_x2, cl = train_y2, k = 5)
+
+conf_matrix <- confusionMatrix(knn_pred, test_y2)
+print(conf_matrix)
+
+```

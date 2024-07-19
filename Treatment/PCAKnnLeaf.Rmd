@@ -1,0 +1,49 @@
+---
+title: "PCALeaf"
+author: "Joe"
+date: "2024-07-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(caret)
+library(class)
+library(dplyr)
+```
+
+```{r}
+# Scale the predictor variables
+predictor_columns <- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area", "Leaf_No")
+
+train_data[predictor_columns] <- scale(train_data[predictor_columns])
+test_data[predictor_columns] <- scale(test_data[predictor_columns])
+
+# Perform PCA
+pca <- prcomp(train_data[, predictor_columns], center = TRUE, scale. = TRUE)
+
+# Select the number of principal components that explain a desired amount of variance (e.g., 95%)
+explained_variance <- cumsum(pca$sdev^2) / sum(pca$sdev^2)
+num_components <- which(explained_variance >= 0.95)[1]
+
+# Transform the data using the selected principal components
+train_pca <- as.data.frame(predict(pca, train_data[, predictor_columns])[, 1:num_components])
+test_pca <- as.data.frame(predict(pca, test_data[, predictor_columns])[, 1:num_components])
+
+# Add the target variable to the transformed data
+train_pca$Treatment_ID <- train_data$Treatment_ID
+test_pca$Treatment_ID <- test_data$Treatment_ID
+
+# Train KNN model using the principal components
+train_x <- train_pca[, -ncol(train_pca)]
+train_y <- train_pca$Treatment_ID
+test_x <- test_pca[, -ncol(test_pca)]
+test_y <- test_pca$Treatment_ID
+
+knn_pred <- knn(train = train_x, test = test_x, cl = train_y, k = 5)
+
+# Evaluate the model
+conf_matrix <- confusionMatrix(knn_pred, test_y)
+print(conf_matrix)
+```
+

@@ -1,0 +1,175 @@
+---
+title: "KNearestLeaf"
+author: "Joe"
+date: "2024-07-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(caret)
+library(class)
+library(dplyr)
+```
+
+```{r}
+data <- read.csv('all_years_leafs_final - all_years_leafs_final.csv')
+summary(data)
+str(data)
+```
+
+# For Treatment
+```{r}
+columns<- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area", "Leaf_No")
+
+data <- data %>%
+  mutate_at(vars(one_of(columns)), as.integer)
+
+data <- data %>%
+  mutate_at(vars(one_of(columns)), ~ifelse(is.na(.), median(., na.rm = TRUE), .))
+
+data$Treatment_ID <- as.factor(data$Treatment_ID)
+data$Genotype_ID <- as.factor(data$Genotype_ID)
+
+set.seed(123)
+train_index <- createDataPartition(data$Treatment_ID, p = 0.8, list = FALSE)
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+
+predictor_columns <- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area", "Leaf_No")
+
+train_data[predictor_columns] <- scale(train_data[predictor_columns])
+test_data[predictor_columns] <- scale(test_data[predictor_columns])
+
+train_x <- train_data[, predictor_columns]
+train_y <- train_data$Treatment_ID
+test_x <- test_data[, predictor_columns]
+test_y <- test_data$Treatment_ID
+
+
+knn_pred <- knn(train = train_x, test = test_x, cl = train_y, k = 5)
+conf_matrix <- confusionMatrix(knn_pred, test_y)
+print(conf_matrix)
+```
+
+```{r}
+columns<- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area", "Leaf_No")
+
+data <- data %>%
+  mutate_at(vars(one_of(columns)), as.integer)
+
+data <- data %>%
+  mutate_at(vars(one_of(columns)), ~ifelse(is.na(.), median(., na.rm = TRUE), .))
+
+data$Treatment_ID <- as.factor(data$Treatment_ID)
+data$Genotype_ID <- as.factor(data$Genotype_ID)
+
+set.seed(123)
+train_index <- createDataPartition(data$Treatment_ID, p = 0.8, list = FALSE)
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+
+predictor_columns <- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area", "Leaf_No")
+
+train_data[predictor_columns] <- scale(train_data[predictor_columns])
+test_data[predictor_columns] <- scale(test_data[predictor_columns])
+
+train_x <- train_data[, predictor_columns]
+train_y <- train_data$Treatment_ID
+test_x <- test_data[, predictor_columns]
+test_y <- test_data$Treatment_ID
+
+# Finding the optimal value of k using cross-validation
+k_values <- 1:20
+accuracy <- map_dbl(k_values, function(k) {
+  knn_pred <- knn(train = train_x, test = test_x, cl = train_y, k = k)
+  conf_matrix <- confusionMatrix(knn_pred, test_y)
+  conf_matrix$overall['Accuracy']
+})
+
+# Plotting accuracy vs. k
+accuracy_df <- data.frame(k = k_values, accuracy = accuracy)
+ggplot(accuracy_df, aes(x = k, y = accuracy)) + 
+  geom_line() + 
+  geom_point() + 
+  labs(title = "Accuracy vs. k", x = "k", y = "Accuracy") + 
+  theme_minimal()
+
+# Best k
+best_k <- k_values[which.max(accuracy)]
+cat("Best k:", best_k, "\n")
+
+# Final model with best k
+knn_pred <- knn(train = train_x, test = test_x, cl = train_y, k = best_k)
+conf_matrix <- confusionMatrix(knn_pred, test_y)
+print(conf_matrix)
+```
+
+```{r}
+columns <- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area", "Leaf_No")
+
+data <- data %>%
+  mutate_at(vars(one_of(columns)), as.integer)
+
+data <- data %>%
+  mutate_at(vars(one_of(columns)), ~ifelse(is.na(.), median(., na.rm = TRUE), .))
+
+data$Treatment_ID <- as.factor(data$Treatment_ID)
+data$Genotype_ID <- as.factor(data$Genotype_ID)
+
+set.seed(123)
+train_index <- createDataPartition(data$Treatment_ID, p = 0.8, list = FALSE)
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+
+# Feature Engineering: Adding interaction terms and polynomial features
+train_data <- train_data %>%
+  mutate(Blade_Length_Width = Blade_Length * Blade_Width,
+         Sheath_Surface = Sheath_Length * Surface_Area,
+         Blade_Length2 = Blade_Length^2,
+         Blade_Width2 = Blade_Width^2)
+
+test_data <- test_data %>%
+  mutate(Blade_Length_Width = Blade_Length * Blade_Width,
+         Sheath_Surface = Sheath_Length * Surface_Area,
+         Blade_Length2 = Blade_Length^2,
+         Blade_Width2 = Blade_Width^2)
+
+# Updating predictor columns
+predictor_columns <- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area", "Leaf_No",
+                       "Blade_Length_Width", "Sheath_Surface", "Blade_Length2", "Blade_Width2")
+
+train_data[predictor_columns] <- scale(train_data[predictor_columns])
+test_data[predictor_columns] <- scale(test_data[predictor_columns])
+
+train_x <- train_data[, predictor_columns]
+train_y <- train_data$Treatment_ID
+test_x <- test_data[, predictor_columns]
+test_y <- test_data$Treatment_ID
+
+# Finding the optimal value of k using cross-validation
+k_values <- 1:20
+accuracy <- map_dbl(k_values, function(k) {
+  knn_pred <- knn(train = train_x, test = test_x, cl = train_y, k = k)
+  conf_matrix <- confusionMatrix(knn_pred, test_y)
+  conf_matrix$overall['Accuracy']
+})
+
+# Plotting accuracy vs. k
+accuracy_df <- data.frame(k = k_values, accuracy = accuracy)
+ggplot(accuracy_df, aes(x = k, y = accuracy)) + 
+  geom_line() + 
+  geom_point() + 
+  labs(title = "Accuracy vs. k", x = "k", y = "Accuracy") + 
+  theme_minimal()
+
+# Best k
+best_k <- k_values[which.max(accuracy)]
+cat("Best k:", best_k, "\n")
+
+# Final model with best k
+knn_pred <- knn(train = train_x, test = test_x, cl = train_y, k = best_k)
+conf_matrix <- confusionMatrix(knn_pred, test_y)
+print(conf_matrix)
+
+```

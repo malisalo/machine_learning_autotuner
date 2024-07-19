@@ -1,0 +1,49 @@
+---
+title: "SVMLeaf"
+author: "Joe"
+date: "2024-07-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(e1071)
+library(caret)
+```
+
+```{r}
+data <- read.csv('all_years_leafs_final - all_years_leafs_final.csv')
+summary(data)
+str(data)
+```
+
+```{r}
+columns<- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area", "Leaf_No")
+
+data <- data %>%
+  mutate_at(vars(one_of(columns)), as.integer)
+
+data <- data %>%
+  mutate_at(vars(one_of(columns)), ~ifelse(is.na(.), median(., na.rm = TRUE), .))
+
+data$Treatment_ID <- as.factor(data$Treatment_ID)
+data$Genotype_ID <- as.factor(data$Genotype_ID)
+
+set.seed(123)
+train_index <- createDataPartition(data$Treatment_ID, p = 0.8, list = FALSE)
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+
+model_svm <- svm(Treatment_ID ~ Blade_Length + Blade_Width + Sheath_Length + Surface_Area + Leaf_No + Genotype_ID, data=train_data)
+summary(model_svm)
+
+predictor_columns <- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area", "Leaf_No")
+
+train_data[predictor_columns] <- scale(train_data[predictor_columns])
+test_data[predictor_columns] <- scale(test_data[predictor_columns])
+
+pred <- predict(model_svm, test_data)
+confusionMatrix(pred, test_data$Treatment_ID)
+```
+

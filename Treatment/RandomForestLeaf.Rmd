@@ -1,0 +1,682 @@
+---
+title: "Classification"
+author: "Joe"
+date: "2024-07-09"
+output: html_document
+---
+
+# Step 1 Data Import and Load Library
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(randomForest)
+library(mice)
+library(ggplot2)
+library(corrplot)
+library(reshape2)
+library(tidyverse)
+library(caret)
+library(doParallel)
+```
+
+# No Hyperparameter tuning (78.17%)
+```{r}
+data <- read.csv('all_years_leafs_final - all_years_leafs_final.csv')
+summary(data)
+str(data)
+
+columns<- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area", "Leaf_No")
+
+data <- data %>%
+  mutate_at(vars(one_of(columns)), as.integer)
+
+data <- data %>%
+  mutate_at(vars(one_of(columns)), ~ifelse(is.na(.), median(., na.rm = TRUE), .))
+
+
+data$Treatment_ID <- as.factor(data$Treatment_ID)
+data$Genotype_ID <- as.factor(data$Genotype_ID)
+data$Leaf_No <- as.factor(data$Leaf_No)
+
+set.seed(123)
+train_index <- createDataPartition(data$Treatment_ID, p = 0.8, list = FALSE)
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+
+# Ensure levels of Treatment_ID in train and test sets match
+train_data$Treatment_ID <- factor(train_data$Treatment_ID, levels = levels(data$Treatment_ID))
+test_data$Treatment_ID <- factor(test_data$Treatment_ID, levels = levels(data$Treatment_ID))
+
+# Setup Parallel Processing
+cl <- makeCluster(detectCores() - 1)  # Use one less core than available
+registerDoParallel(cl)
+
+# Train a Random Forest model
+model_rf <- train(Treatment_ID ~ Blade_Length + Blade_Width + Sheath_Length + Surface_Area + Leaf_No + Genotype_ID, 
+                  data = train_data, 
+                  method = 'rf', 
+                  trControl = trainControl(method = 'cv', number = 5),
+                  tuneGrid = data.frame(mtry = sqrt(ncol(train_data))),  # Optimize mtry
+                  ntree = 100)  # Reduce number of trees
+
+# Stop Parallel Processing
+stopCluster(cl)
+
+# Evaluate the model
+predictions <- predict(model_rf, test_data)
+
+# Ensure levels of predictions match levels of Treatment_ID in test set
+predictions <- factor(predictions, levels = levels(test_data$Treatment_ID))
+
+# Create confusion matrix
+confusion_matrix <- confusionMatrix(predictions, test_data$Treatment_ID)
+
+print(confusion_matrix)
+
+# Output the model performance
+print(model_rf)
+print(confusion_matrix)
+```
+
+# Hyperparameter Tuning + All Treatment (83.1%)
+```{r}
+data <- read.csv('all_years_leafs_final - all_years_leafs_final.csv')
+summary(data)
+str(data)
+
+columns <- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area", "Leaf_No")
+
+data <- data %>%
+  mutate_at(vars(one_of(columns)), as.integer)
+
+data <- data %>%
+  mutate_at(vars(one_of(columns)), ~ifelse(is.na(.), median(., na.rm = TRUE), .))
+
+data$Treatment_ID <- as.factor(data$Treatment_ID)
+data$Genotype_ID <- as.factor(data$Genotype_ID)
+data$Leaf_No <- as.factor(data$Leaf_No)
+
+set.seed(123)
+train_index <- createDataPartition(data$Treatment_ID, p = 0.8, list = FALSE)
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+
+# Ensure level in the amount of factor is consistent
+train_data$Treatment_ID <- factor(train_data$Treatment_ID, levels = levels(data$Treatment_ID))
+test_data$Treatment_ID <- factor(test_data$Treatment_ID, levels = levels(data$Treatment_ID))
+
+# Retrieve available core 
+cl <- makeCluster(detectCores() - 1)
+# Parallel Processing 
+registerDoParallel(cl)
+
+# Train a Random Forest model with hyper parameter tuning
+tune_grid <- expand.grid(mtry = seq(1, ncol(train_data) - 1, by = 1))  # Adjust mtry values
+control <- trainControl(method = "cv", number = 10, search = "grid")
+
+model_rf <- train(Treatment_ID ~ Blade_Length + Blade_Width + Sheath_Length + Surface_Area + Leaf_No + Genotype_ID, 
+                  data = train_data, 
+                  method = 'rf', 
+                  trControl = control,
+                  tuneGrid = tune_grid,  
+                  ntree = 500,  # Increase number of trees
+                  importance = TRUE)  # Calculate variable importance
+
+stopCluster(cl)
+
+predictions <- predict(model_rf, test_data)
+
+predictions <- factor(predictions, levels = levels(test_data$Treatment_ID))
+confusion_matrix <- confusionMatrix(predictions, test_data$Treatment_ID)
+
+print(confusion_matrix)
+print(model_rf)
+print(confusion_matrix)
+
+var_imp <- varImp(model_rf)
+plot(var_imp)
+
+var_imp_plot <- ggplot(var_imp, aes(x = reorder(Overall, Overall), y = Overall)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Variable Importance", x = "Variables", y = "Importance")
+
+print(var_imp_plot)
+
+library(corrplot)
+numeric_data <- data[, sapply(data, is.numeric)]
+correlation_matrix <- cor(numeric_data, use = "complete.obs")
+correlation_plot <- corrplot(correlation_matrix, method = "color", tl.col = "black", tl.cex = 0.8)
+
+library(reshape2)
+correlation_df <- melt(correlation_matrix)
+correlation_plot_gg <- ggplot(correlation_df, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0) +
+  theme_minimal() +
+  labs(title = "Correlation Matrix", x = "", y = "") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(correlation_plot_gg)
+```
+
+# Only Control + Drought "Highest accuracy" (87.3%)
+```{r}
+data <- read.csv('all_years_leafs_final - all_years_leafs_final.csv')
+summary(data)
+str(data)
+
+columns <- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area", "Leaf_No")
+
+data <- data %>%
+  mutate_at(vars(one_of(columns)), as.integer)
+
+data <- data %>%
+  mutate_at(vars(one_of(columns)), ~ifelse(is.na(.), median(., na.rm = TRUE), .))
+
+data <- data[which(data$Treatment_ID == "CONTROL" | data$Treatment_ID == "DROUGHT"),]
+
+data$Treatment_ID <- as.factor(data$Treatment_ID)
+data$Genotype_ID <- as.factor(data$Genotype_ID)
+data$Leaf_No <- as.factor(data$Leaf_No)
+
+set.seed(123)
+train_index <- createDataPartition(data$Treatment_ID, p = 0.8, list = FALSE)
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+
+# Ensure level in the amount of factor is consistent
+train_data$Treatment_ID <- factor(train_data$Treatment_ID, levels = levels(data$Treatment_ID))
+test_data$Treatment_ID <- factor(test_data$Treatment_ID, levels = levels(data$Treatment_ID))
+
+# Retrieve available core 
+cl <- makeCluster(detectCores() - 1)
+# Parallel Processing 
+registerDoParallel(cl)
+
+# Train a Random Forest model with hyper parameter tuning
+tune_grid <- expand.grid(mtry = seq(1, ncol(train_data) - 1, by = 1))  # Adjust mtry values
+control <- trainControl(method = "cv", number = 10, search = "grid")
+
+model_rf <- train(Treatment_ID ~ Blade_Length + Blade_Width + Sheath_Length + Surface_Area + Leaf_No + Genotype_ID, 
+                  data = train_data, 
+                  method = 'rf', 
+                  trControl = control,
+                  tuneGrid = tune_grid,  
+                  ntree = 55,  # Increase number of trees
+                  importance = TRUE)  # Calculate variable importance
+
+stopCluster(cl)
+
+predictions <- predict(model_rf, test_data)
+
+predictions <- factor(predictions, levels = levels(test_data$Treatment_ID))
+confusion_matrix <- confusionMatrix(predictions, test_data$Treatment_ID)
+
+print(confusion_matrix)
+print(model_rf)
+print(confusion_matrix)
+
+var_imp <- varImp(model_rf)
+plot(var_imp)
+
+var_imp_plot <- ggplot(var_imp, aes(x = reorder(Overall, Overall), y = Overall)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Variable Importance", x = "Variables", y = "Importance")
+
+print(var_imp_plot)
+
+library(corrplot)
+numeric_data <- data[, sapply(data, is.numeric)]
+correlation_matrix <- cor(numeric_data, use = "complete.obs")
+correlation_plot <- corrplot(correlation_matrix, method = "color", tl.col = "black", tl.cex = 0.8)
+
+library(reshape2)
+correlation_df <- melt(correlation_matrix)
+correlation_plot_gg <- ggplot(correlation_df, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0) +
+  theme_minimal() +
+  labs(title = "Correlation Matrix", x = "", y = "") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(correlation_plot_gg)
+```
+
+# Without Genotype ID since only using B73 (84.4%)
+```{r}
+data <- read.csv('all_years_leafs_final - all_years_leafs_final.csv')
+summary(data)
+str(data)
+
+columns <- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area", "Leaf_No")
+
+data <- data %>%
+  mutate_at(vars(one_of(columns)), as.integer)
+
+data <- data %>%
+  mutate_at(vars(one_of(columns)), ~ifelse(is.na(.), median(., na.rm = TRUE), .))
+
+data = data[ which(data$Genotype_ID == "B73"),]
+
+data$Treatment_ID <- as.factor(data$Treatment_ID)
+data$Genotype_ID <- as.factor(data$Genotype_ID)
+data$Leaf_No <- as.factor(data$Leaf_No)
+
+set.seed(123)
+train_index <- createDataPartition(data$Treatment_ID, p = 0.8, list = FALSE)
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+
+# Ensure level in the amount of factor is consistent
+train_data$Treatment_ID <- factor(train_data$Treatment_ID, levels = levels(data$Treatment_ID))
+test_data$Treatment_ID <- factor(test_data$Treatment_ID, levels = levels(data$Treatment_ID))
+
+# Retrieve available core 
+cl <- makeCluster(detectCores() - 1)
+# Parallel Processing 
+registerDoParallel(cl)
+
+# Train a Random Forest model with hyper parameter tuning
+tune_grid <- expand.grid(mtry = seq(1, ncol(train_data) - 1, by = 1))  # Adjust mtry values
+control <- trainControl(method = "cv", number = 10, search = "grid")
+
+model_rf <- train(Treatment_ID ~ Blade_Length + Blade_Width + Sheath_Length + Surface_Area + Leaf_No, 
+                  data = train_data, 
+                  method = 'rf', 
+                  trControl = control,
+                  tuneGrid = tune_grid,  
+                  ntree = 500,  # Increase number of trees
+                  importance = TRUE)  # Calculate variable importance
+
+stopCluster(cl)
+
+predictions <- predict(model_rf, test_data)
+
+predictions <- factor(predictions, levels = levels(test_data$Treatment_ID))
+confusion_matrix <- confusionMatrix(predictions, test_data$Treatment_ID)
+
+print(confusion_matrix)
+print(model_rf)
+print(confusion_matrix)
+
+var_imp <- varImp(model_rf)
+plot(var_imp)
+```
+# Validation, Test set and Train set split for all data
+```{r}
+columns <- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area", "Leaf_No")
+
+# Convert specified columns to integer and handle missing values
+data <- data %>%
+  mutate_at(vars(one_of(columns)), as.integer) %>%
+  mutate_at(vars(one_of(columns)), ~ifelse(is.na(.), median(., na.rm = TRUE), .))
+
+# Convert necessary columns to factors
+data$Treatment_ID <- as.factor(data$Treatment_ID)
+data$Genotype_ID <- as.factor(data$Genotype_ID)
+data$Leaf_No <- as.factor(data$Leaf_No)
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Split data into 80% training and 20% remaining
+train_index <- createDataPartition(data$Treatment_ID, p = 0.8, list = FALSE)
+train_data <- data[train_index, ]
+remaining_data <- data[-train_index, ]
+
+# Split the remaining data into 50% validation and 50% test (which is 10% of the original data each)
+validation_index <- createDataPartition(remaining_data$Treatment_ID, p = 0.5, list = FALSE)
+validation_data <- remaining_data[validation_index, ]
+test_data <- remaining_data[-validation_index, ]
+
+# Ensure levels of factors are consistent
+train_data$Treatment_ID <- factor(train_data$Treatment_ID, levels = levels(data$Treatment_ID))
+validation_data$Treatment_ID <- factor(validation_data$Treatment_ID, levels = levels(data$Treatment_ID))
+test_data$Treatment_ID <- factor(test_data$Treatment_ID, levels = levels(data$Treatment_ID))
+
+# Retrieve available cores
+cl <- makeCluster(detectCores() - 1)
+# Parallel processing
+registerDoParallel(cl)
+
+# Train a Random Forest model with hyperparameter tuning
+tune_grid <- expand.grid(mtry = seq(1, ncol(train_data) - 1, by = 1))  # Adjust mtry values
+control <- trainControl(method = "cv", number = 10, search = "grid")
+
+model_rf <- train(Treatment_ID ~ Blade_Length + Blade_Width + Sheath_Length + Surface_Area + Leaf_No + Genotype_ID, 
+                  data = train_data, 
+                  method = 'rf', 
+                  trControl = control,
+                  tuneGrid = tune_grid,  
+                  ntree = 500,  # Increase number of trees
+                  importance = TRUE)  # Calculate variable importance
+
+stopCluster(cl)
+
+# Validate the model on the validation set
+validation_predictions <- predict(model_rf, validation_data)
+validation_predictions <- factor(validation_predictions, levels = levels(validation_data$Treatment_ID))
+validation_confusion_matrix <- confusionMatrix(validation_predictions, validation_data$Treatment_ID)
+
+print(validation_confusion_matrix)
+
+# Test the model on the test set
+test_predictions <- predict(model_rf, test_data)
+test_predictions <- factor(test_predictions, levels = levels(test_data$Treatment_ID))
+test_confusion_matrix <- confusionMatrix(test_predictions, test_data$Treatment_ID)
+
+print(test_confusion_matrix)
+
+# Print model details
+print(model_rf)
+
+# Variable importance
+var_imp <- varImp(model_rf)
+plot(var_imp)
+
+var_imp_plot <- ggplot(var_imp, aes(x = reorder(Overall, Overall), y = Overall)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Variable Importance", x = "Variables", y = "Importance")
+
+print(var_imp_plot)
+
+# Correlation plot
+numeric_data <- data[, sapply(data, is.numeric)]
+correlation_matrix <- cor(numeric_data, use = "complete.obs")
+correlation_plot <- corrplot(correlation_matrix, method = "color", tl.col = "black", tl.cex = 0.8)
+
+correlation_df <- melt(correlation_matrix)
+correlation_plot_gg <- ggplot(correlation_df, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0) +
+  theme_minimal() +
+  labs(title = "Correlation Matrix", x = "", y = "") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(correlation_plot_gg)
+```
+
+#Imputer RDS 
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(missForest)
+library(mice)
+
+data <- read.csv('all_years_leafs_final - all_years_leafs_final.csv')
+summary(data)
+str(data)
+
+# Define the columns to be converted to integers and imputed
+columns <- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area", "Leaf_No")
+
+# Convert columns to integer
+data <- data %>%
+  mutate_at(vars(one_of(columns)), as.integer)
+
+# Handle missing values using median imputation
+data <- data %>%
+  mutate_at(vars(one_of(columns)), ~ifelse(is.na(.), median(., na.rm = TRUE), .))
+
+# Convert necessary columns to factors
+data$Treatment_ID <- as.factor(data$Treatment_ID)
+data$Genotype_ID <- as.factor(data$Genotype_ID)
+data$Leaf_No <- as.factor(data$Leaf_No)
+data$Genotype_ID_C <- as.factor(data$Genotype_ID_C)
+data$Origin_Single <- as.factor(data$Origin_Single)
+data$Origin_Grouped_by_Climate <- as.factor(data$Origin_Grouped_by_Climate)
+data$Origin_Grouped_by_Region <- as.factor(data$Origin_Grouped_by_Region)
+data$Season <- as.factor(data$Season)
+
+# Train the imputer using missForest
+set.seed(123)
+imputer <- missForest(data)
+
+# Save the trained imputer model to an RDS file
+saveRDS(imputer, 'pretrained_imputer.rds')
+
+# Optional: Train the imputer using mice
+# Uncomment the following lines if you prefer to use mice for imputation
+
+imputer_mice <- mice(data, m = 5, maxit = 5, method = 'pmm', seed = 123)
+saveRDS(imputer_mice, 'pretrained_imputer_mice.rds')
+
+```
+
+```{r}
+# Load user data
+user_data <- read.csv('all_years_leafs_final - all_years_leafs_final.csv')  # Replace with the actual path to the user data file
+summary(user_data)
+str(user_data)
+
+# Define the columns to be converted to appropriate types
+categorical_columns <- c("Year", "Season", "Genotype_ID", "Treatment_ID", "Plant_ID", "Leaf_No", "Genotype_ID_C", "Origin_Single", "Origin_Grouped_by_Climate", "Origin_Grouped_by_Region")
+numeric_columns <- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area")
+
+# Convert necessary columns to factors
+user_data <- user_data %>%
+  mutate_at(vars(one_of(categorical_columns)), as.factor) %>%
+  mutate_at(vars(one_of(numeric_columns)), as.numeric)
+
+# Load the pre-trained imputer (choose either missForest or mice based on your previous setup)
+imputer <- readRDS('pretrained_imputer.rds')  # missForest imputer
+# imputer_mice <- readRDS('pretrained_imputer_mice.rds')  # Uncomment if using mice imputer
+
+# Apply the pre-trained imputer
+# For missForest
+imputed_user_data <- complete(imputer$ximp)
+# For mice, uncomment the following line
+# imputed_user_data <- complete(imputer_mice, action = 1)
+
+# Ensure imputed_user_data is a data frame
+imputed_user_data <- as.data.frame(imputed_user_data)
+
+# Convert necessary columns to factors again (in case they were converted to numeric during imputation)
+imputed_user_data <- imputed_user_data %>%
+  mutate_at(vars(one_of(categorical_columns)), as.factor)
+
+# Split user data into training and testing sets
+set.seed(123)
+train_index <- createDataPartition(imputed_user_data$Treatment_ID, p = 0.8, list = FALSE)
+train_data <- imputed_user_data[train_index, ]
+test_data <- imputed_user_data[-train_index, ]
+
+# Ensure levels in the factors are consistent
+train_data$Treatment_ID <- factor(train_data$Treatment_ID, levels = levels(imputed_user_data$Treatment_ID))
+test_data$Treatment_ID <- factor(test_data$Treatment_ID, levels = levels(imputed_user_data$Treatment_ID))
+
+# Set up parallel processing
+cl <- makeCluster(detectCores() - 1)
+registerDoParallel(cl)
+
+# Train a Random Forest model with hyperparameter tuning
+tune_grid <- expand.grid(mtry = seq(1, ncol(train_data) - 1, by = 1))
+control <- trainControl(method = "cv", number = 10, search = "grid")
+
+model_rf <- train(Treatment_ID ~ Blade_Length + Blade_Width + Sheath_Length + Surface_Area + Leaf_No + Genotype_ID,
+                  data = train_data, 
+                  method = 'rf', 
+                  trControl = control,
+                  tuneGrid = tune_grid,  
+                  ntree = 500,
+                  importance = TRUE)
+
+# Stop the cluster
+stopCluster(cl)
+
+# Make predictions on the test set
+predictions <- predict(model_rf, test_data)
+predictions <- factor(predictions, levels = levels(test_data$Treatment_ID))
+
+# Evaluate the model
+confusion_matrix <- confusionMatrix(predictions, test_data$Treatment_ID)
+
+# Print the results
+print(confusion_matrix)
+print(model_rf)
+
+# Plot variable importance
+var_imp <- varImp(model_rf)
+plot(var_imp)
+
+var_imp_plot <- ggplot(var_imp, aes(x = reorder(Overall, Overall), y = Overall)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Variable Importance", x = "Variables", y = "Importance")
+
+print(var_imp_plot)
+
+# Correlation matrix
+numeric_data <- imputed_user_data[, sapply(imputed_user_data, is.numeric)]
+correlation_matrix <- cor(numeric_data, use = "complete.obs")
+correlation_plot <- corrplot(correlation_matrix, method = "color", tl.col = "black", tl.cex = 0.8)
+
+# Correlation plot with ggplot2
+correlation_df <- melt(correlation_matrix)
+correlation_plot_gg <- ggplot(correlation_df, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0) +
+  theme_minimal() +
+  labs(title = "Correlation Matrix", x = "", y = "") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(correlation_plot_gg)
+```
+
+```{r}
+# Load your dataset
+data <- read.csv('all_years_leafs_final - all_years_leafs_final.csv')
+summary(data)
+str(data)
+
+# Define the columns to be converted to appropriate types
+columns <- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area", "Leaf_No")
+
+# Convert columns to integer
+data <- data %>%
+  mutate_at(vars(one_of(columns)), as.integer)
+
+# Handle missing values using median imputation
+data <- data %>%
+  mutate_at(vars(one_of(columns)), ~ifelse(is.na(.), median(., na.rm = TRUE), .))
+
+# Convert necessary columns to factors
+data$Treatment_ID <- as.factor(data$Treatment_ID)
+data$Genotype_ID <- as.factor(data$Genotype_ID)
+data$Leaf_No <- as.factor(data$Leaf_No)
+data$Genotype_ID_C <- as.factor(data$Genotype_ID_C)
+data$Origin_Single <- as.factor(data$Origin_Single)
+data$Origin_Grouped_by_Climate <- as.factor(data$Origin_Grouped_by_Climate)
+data$Origin_Grouped_by_Region <- as.factor(data$Origin_Grouped_by_Region)
+data$Season <- as.factor(data$Season)
+
+# Split the data into two parts
+set.seed(123)
+imputer_train_index <- createDataPartition(data$Treatment_ID, p = 0.5, list = FALSE)
+imputer_train_data <- data[imputer_train_index, ]
+user_data <- data[-imputer_train_index, ]
+
+# Train the imputer using missForest on the imputer training data
+set.seed(123)
+imputer <- missForest(imputer_train_data)
+
+# Save the trained imputer model to an RDS file
+saveRDS(imputer, 'pretrained_imputer.rds')
+
+# Load user data
+summary(user_data)
+str(user_data)
+
+# Convert necessary columns to factors
+user_data <- user_data %>%
+  mutate_at(vars(one_of(categorical_columns)), as.factor) %>%
+  mutate_at(vars(one_of(numeric_columns)), as.numeric)
+
+# Load the pre-trained imputer
+imputer <- readRDS('pretrained_imputer.rds')
+
+# Apply the pre-trained imputer
+imputed_user_data <- complete(imputer$ximp)
+
+# Ensure imputed_user_data is a data frame
+imputed_user_data <- as.data.frame(imputed_user_data)
+
+# Convert necessary columns to factors again (in case they were converted to numeric during imputation)
+imputed_user_data <- imputed_user_data %>%
+  mutate_at(vars(one_of(categorical_columns)), as.factor)
+
+# Split user data into training and testing sets
+set.seed(123)
+train_index <- createDataPartition(imputed_user_data$Treatment_ID, p = 0.8, list = FALSE)
+train_data <- imputed_user_data[train_index, ]
+test_data <- imputed_user_data[-train_index, ]
+
+# Ensure levels in the factors are consistent
+train_data$Treatment_ID <- factor(train_data$Treatment_ID, levels = levels(imputed_user_data$Treatment_ID))
+test_data$Treatment_ID <- factor(test_data$Treatment_ID, levels = levels(imputed_user_data$Treatment_ID))
+
+# Set up parallel processing
+cl <- makeCluster(detectCores() - 1)
+registerDoParallel(cl)
+
+# Train a Random Forest model with hyperparameter tuning
+tune_grid <- expand.grid(mtry = seq(1, ncol(train_data) - 1, by = 1))
+control <- trainControl(method = "cv", number = 10, search = "grid")
+
+model_rf <- train(Treatment_ID ~ Blade_Length + Blade_Width + Sheath_Length + Surface_Area + Leaf_No + Genotype_ID + Plant_ID + Year + Season + Genotype_ID_C + Origin_Single + Origin_Grouped_by_Climate + Origin_Grouped_by_Region, 
+                  data = train_data, 
+                  method = 'rf', 
+                  trControl = control,
+                  tuneGrid = tune_grid,  
+                  ntree = 500,
+                  importance = TRUE)
+
+# Stop the cluster
+stopCluster(cl)
+
+# Make predictions on the test set
+predictions <- predict(model_rf, test_data)
+predictions <- factor(predictions, levels = levels(test_data$Treatment_ID))
+
+# Evaluate the model
+confusion_matrix <- confusionMatrix(predictions, test_data$Treatment_ID)
+
+# Print the results
+print(confusion_matrix)
+print(model_rf)
+
+# Plot variable importance
+var_imp <- varImp(model_rf)
+plot(var_imp)
+
+var_imp_plot <- ggplot(var_imp, aes(x = reorder(Overall, Overall), y = Overall)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Variable Importance", x = "Variables", y = "Importance")
+
+print(var_imp_plot)
+
+# Correlation matrix
+numeric_data <- imputed_user_data[, sapply(imputed_user_data, is.numeric)]
+correlation_matrix <- cor(numeric_data, use = "complete.obs")
+correlation_plot <- corrplot(correlation_matrix, method = "color", tl.col = "black", tl.cex = 0.8)
+
+# Correlation plot with ggplot2
+correlation_df <- melt(correlation_matrix)
+correlation_plot_gg <- ggplot(correlation_df, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0) +
+  theme_minimal() +
+  labs(title = "Correlation Matrix", x = "", y = "") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(correlation_plot_gg)
+```
+

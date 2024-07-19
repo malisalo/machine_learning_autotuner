@@ -1,0 +1,120 @@
+---
+title: "UserRefineTreatment"
+author: "Joe"
+date: "2024-07-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# Load necessary libraries
+library(caret)
+library(doParallel)
+library(ggplot2)
+library(corrplot)
+library(reshape2)
+library(dplyr)
+library(missForest)
+library(mice)
+```
+
+
+```{r}
+
+data <- read.csv('all_years_leafs_final - all_years_leafs_final.csv')
+
+# Display summary and structure of the data
+summary(data)
+str(data)
+
+# Define the columns to be converted to appropriate types
+categorical_columns <- c( "Genotype_ID", "Treatment_ID", "Plant_ID", "Leaf_No")
+numeric_columns <- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area")
+
+# Convert necessary columns to factors
+data <- data %>%
+  mutate_at(vars(one_of(categorical_columns)), as.factor) %>%
+  mutate_at(vars(one_of(numeric_columns)), as.numeric)
+
+# Initial Median Imputation
+data <- data %>%
+  mutate_at(vars(one_of(numeric_columns)), ~ifelse(is.na(.), median(., na.rm = TRUE), .))
+
+# Optional: Refine imputation with MICE
+use_mice <- FALSE  # Set to TRUE if you want to use MICE for refinement
+
+if (use_mice) {
+  set.seed(123)
+  imputer <- mice(data, m = 5, maxit = 5, method = 'pmm', seed = 123)
+  imputed_data <- complete(imputer, action = 1)
+} else {
+  imputed_data <- data
+}
+
+imputed_data <- as.data.frame(imputed_data)
+
+# Split data into training and testing sets
+set.seed(123)
+train_index <- createDataPartition(imputed_data$Treatment_ID, p = 0.8, list = FALSE)
+train_data <- imputed_data[train_index, ]
+test_data <- imputed_data[-train_index, ]
+
+# Set up parallel processing
+cl <- makeCluster(detectCores() - 1)
+registerDoParallel(cl)
+
+# Train a Random Forest model with hyperparameter tuning
+tune_grid <- expand.grid(mtry = seq(1, ncol(train_data) - 1, by = 1))
+control <- trainControl(method = "cv", number = 10, search = "grid")
+
+model_rf <- train(Treatment_ID ~ Blade_Length + Blade_Width + Sheath_Length + Surface_Area + Leaf_No + Genotype_ID + Plant_ID, 
+                  data = train_data, 
+                  method = 'rf', 
+                  trControl = control,
+                  tuneGrid = tune_grid,  
+                  ntree = 500,
+                  importance = TRUE)
+
+# Stop the cluster
+stopCluster(cl)
+
+# Make predictions on the test set
+predictions <- predict(model_rf, test_data)
+predictions <- factor(predictions, levels = levels(test_data$Treatment_ID))
+
+# Evaluate the model
+confusion_matrix <- confusionMatrix(predictions, test_data$Treatment_ID)
+
+# Print the results
+print(confusion_matrix)
+print(model_rf)
+
+# Plot variable importance
+var_imp <- varImp(model_rf)
+plot(var_imp)
+
+var_imp_plot <- ggplot(var_imp, aes(x = reorder(Overall, Overall), y = Overall)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Variable Importance", x = "Variables", y = "Importance")
+
+print(var_imp_plot)
+
+# Correlation matrix
+numeric_data <- imputed_data[, sapply(imputed_data, is.numeric)]
+correlation_matrix <- cor(numeric_data, use = "complete.obs")
+correlation_plot <- corrplot(correlation_matrix, method = "color", tl.col = "black", tl.cex = 0.8)
+
+# Correlation plot with ggplot2
+correlation_df <- melt(correlation_matrix)
+correlation_plot_gg <- ggplot(correlation_df, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0) +
+  theme_minimal() +
+  labs(title = "Correlation Matrix", x = "", y = "") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(correlation_plot_gg)
+
+```

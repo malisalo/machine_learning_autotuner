@@ -1,0 +1,126 @@
+---
+title: "CorrelationMatrix"
+author: "Joe"
+date: "2024-07-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+library(corrplot)
+```
+
+```{r}
+
+data <- read.csv('roots_shoots - roots_shoots.csv')
+
+# Columns to be converted to integer and handle missing values
+integer_columns <- c(
+  "Surface_Area_Leaf_5", "Surface_Area_Leaf_2", "Surface_Area_Leaf_4", "Surface_Area_Leaf_3", "Surface_Area_Leaf_1",
+  "Blade_Width_Leaf_5", "Blade_Width_Leaf_2", "Blade_Width_Leaf_4", "Blade_Width_Leaf_3", "Blade_Width_Leaf_1",
+  "Blade_Length_Leaf_5", "Blade_Length_Leaf_2", "Blade_Length_Leaf_4", "Blade_Length_Leaf_3", "Blade_Length_Leaf_1",
+  "Sheath_Length_Leaf_5", "Sheath_Length_Leaf_2", "Sheath_Length_Leaf_4", "Sheath_Length_Leaf_3", "Sheath_Length_Leaf_1",
+  "summarized_Total.Root.Length.mm_Root_Crown", "summarized_Total.Root.Length.mm_Root_Primary", "summarized_Total.Root.Length.mm_Root_Seminal",
+  "summarized_Branching.frequency.per.mm_Root_Crown", "summarized_Branching.frequency.per.mm_Root_Primary", "summarized_Branching.frequency.per.mm_Root_Seminal",
+  "summarized_Number.of.Root.Tips_Root_Crown", "summarized_Number.of.Root.Tips_Root_Primary", "summarized_Number.of.Root.Tips_Root_Seminal",
+  "summarized_Number.of.Branch.Points_Root_Crown", "summarized_Number.of.Branch.Points_Root_Primary", "summarized_Number.of.Branch.Points_Root_Seminal",
+  "summarized_Network.Area.mm2_Root_Crown", "summarized_Network.Area.mm2_Root_Primary", "summarized_Network.Area.mm2_Root_Seminal",
+  "summarized_Average.Diameter.mm_Root_Crown", "summarized_Average.Diameter.mm_Root_Primary", "summarized_Average.Diameter.mm_Root_Seminal",
+  "summarized_Median.Diameter.mm_Root_Crown", "summarized_Median.Diameter.mm_Root_Primary", "summarized_Median.Diameter.mm_Root_Seminal",
+  "summarized_Maximum.Diameter.mm_Root_Crown", "summarized_Maximum.Diameter.mm_Root_Primary", "summarized_Maximum.Diameter.mm_Root_Seminal",
+  "summarized_Perimeter.mm_Root_Crown", "summarized_Perimeter.mm_Root_Primary", "summarized_Perimeter.mm_Root_Seminal",
+  "summarized_Volume.mm3_Root_Crown", "summarized_Volume.mm3_Root_Primary", "summarized_Volume.mm3_Root_Seminal",
+  "summarized_Surface.Area.mm2_Root_Crown", "summarized_Surface.Area.mm2_Root_Primary", "summarized_Surface.Area.mm2_Root_Seminal",
+  "summarized_Root.Length.Diameter.Range.1.mm_Root_Crown", "summarized_Root.Length.Diameter.Range.1.mm_Root_Primary", "summarized_Root.Length.Diameter.Range.1.mm_Root_Seminal",
+  "summarized_Root.Length.Diameter.Range.2.mm_Root_Crown", "summarized_Root.Length.Diameter.Range.2.mm_Root_Primary", "summarized_Root.Length.Diameter.Range.2.mm_Root_Seminal",
+  "summarized_Root.Length.Diameter.Range.3.mm_Root_Crown", "summarized_Root.Length.Diameter.Range.3.mm_Root_Primary", "summarized_Root.Length.Diameter.Range.3.mm_Root_Seminal"
+)
+
+data2 <- data %>%
+  mutate_at(vars(one_of(integer_columns)), ~ as.integer(.))
+
+data_cleaned <- data2 %>%
+  mutate_at(vars(one_of(integer_columns)), ~ ifelse(is.na(.), median(., na.rm = TRUE), .))
+
+summary(data2)
+
+```
+
+```{r}
+data <- read.csv('roots_shoots - roots_shoots.csv')
+
+# Columns to be converted to numeric and handle missing values
+numeric_columns <- c(
+  "Surface_Area_Leaf_5", "Surface_Area_Leaf_2", "Surface_Area_Leaf_4", "Surface_Area_Leaf_3", "Surface_Area_Leaf_1",
+  "Blade_Width_Leaf_5", "Blade_Width_Leaf_2", "Blade_Width_Leaf_4", "Blade_Width_Leaf_3", "Blade_Width_Leaf_1",
+  "Blade_Length_Leaf_5", "Blade_Length_Leaf_2", "Blade_Length_Leaf_4", "Blade_Length_Leaf_3", "Blade_Length_Leaf_1",
+  "Sheath_Length_Leaf_5", "Sheath_Length_Leaf_2", "Sheath_Length_Leaf_4", "Sheath_Length_Leaf_3", "Sheath_Length_Leaf_1",
+  "summarized_Total.Root.Length.mm_Root_Crown", "summarized_Total.Root.Length.mm_Root_Primary", "summarized_Total.Root.Length.mm_Root_Seminal",
+  "summarized_Branching.frequency.per.mm_Root_Crown", "summarized_Branching.frequency.per.mm_Root_Primary", "summarized_Branching.frequency.per.mm_Root_Seminal",
+  "summarized_Number.of.Root.Tips_Root_Crown", "summarized_Number.of.Root.Tips_Root_Primary", "summarized_Number.of.Root.Tips_Root_Seminal",
+  "summarized_Number.of.Branch.Points_Root_Crown", "summarized_Number.of.Branch.Points_Root_Primary", "summarized_Number.of.Branch.Points_Root_Seminal",
+  "summarized_Network.Area.mm2_Root_Crown", "summarized_Network.Area.mm2_Root_Primary", "summarized_Network.Area.mm2_Root_Seminal",
+  "summarized_Average.Diameter.mm_Root_Crown", "summarized_Average.Diameter.mm_Root_Primary", "summarized_Average.Diameter.mm_Root_Seminal",
+  "summarized_Median.Diameter.mm_Root_Crown", "summarized_Median.Diameter.mm_Root_Primary", "summarized_Median.Diameter.mm_Root_Seminal",
+  "summarized_Maximum.Diameter.mm_Root_Crown", "summarized_Maximum.Diameter.mm_Root_Primary", "summarized_Maximum.Diameter.mm_Root_Seminal",
+  "summarized_Perimeter.mm_Root_Crown", "summarized_Perimeter.mm_Root_Primary", "summarized_Perimeter.mm_Root_Seminal",
+  "summarized_Volume.mm3_Root_Crown", "summarized_Volume.mm3_Root_Primary", "summarized_Volume.mm3_Root_Seminal",
+  "summarized_Surface.Area.mm2_Root_Crown", "summarized_Surface.Area.mm2_Root_Primary", "summarized_Surface.Area.mm2_Root_Seminal",
+  "summarized_Root.Length.Diameter.Range.1.mm_Root_Crown", "summarized_Root.Length.Diameter.Range.1.mm_Root_Primary", "summarized_Root.Length.Diameter.Range.1.mm_Root_Seminal",
+  "summarized_Root.Length.Diameter.Range.2.mm_Root_Crown", "summarized_Root.Length.Diameter.Range.2.mm_Root_Primary", "summarized_Root.Length.Diameter.Range.2.mm_Root_Seminal",
+  "summarized_Root.Length.Diameter.Range.3.mm_Root_Crown", "summarized_Root.Length.Diameter.Range.3.mm_Root_Primary", "summarized_Root.Length.Diameter.Range.3.mm_Root_Seminal"
+)
+
+# Convert columns to numeric and handle missing values
+data_cleaned <- data %>%
+  mutate_at(vars(one_of(numeric_columns)), ~ as.numeric(.)) %>%
+  mutate_at(vars(one_of(numeric_columns)), ~ ifelse(is.na(.), median(., na.rm = TRUE), .))
+
+# Select only the numeric columns
+data_selected <- data_cleaned %>%
+  select(one_of(numeric_columns))
+
+# Remove columns with zero variance
+data_selected <- data_selected %>%
+  select_if(~ var(.) != 0)
+
+# Columns that were removed due to zero variance
+removed_columns <- setdiff(names(data_cleaned), names(data_selected))
+print("Removed columns due to zero variance:")
+print(removed_columns)
+
+# Split numeric columns into 3 groups
+groups <- split(numeric_columns, cut(seq_along(numeric_columns), 3, labels = FALSE))
+
+create_corrplot <- function(variable, group_data) {
+  if (!variable %in% colnames(group_data)) {
+    message(paste("Skipping variable", variable, "as it does not exist in the dataset."))
+    return(NULL)
+  }
+  
+  corr_vector <- cor(group_data, use = "complete.obs")[, variable, drop = FALSE]
+  
+  if (any(is.na(corr_vector))) {
+    message(paste("Skipping variable", variable, "due to NA values in the correlation vector."))
+    return(NULL)
+  }
+  
+  corrplot(corr_vector, method = "color", tl.cex = 0.8, number.cex = 0.8,
+           title = paste("Correlation with", variable))
+}
+
+# Increase the plotting window size
+options(repr.plot.width = 10, repr.plot.height = 10)
+
+# Generate plots for each group
+for (i in seq_along(groups)) {
+  group_data <- data_selected %>% select(all_of(groups[[i]]))
+  cat("\n\n### Group", i, "\n\n")
+  for (variable in groups[[i]]) {
+    create_corrplot(variable, group_data)
+  }
+}
+```
+

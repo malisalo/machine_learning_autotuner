@@ -1,0 +1,222 @@
+---
+title: "GenoPredict"
+author: "Joe"
+date: "2024-07-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(randomForest)
+library(mice)
+library(ggplot2)
+library(corrplot)
+library(reshape2)
+library(tidyverse)
+library(caret)
+library(doParallel)
+library(e1071)
+library(class)
+library(purrr)
+
+```
+
+```{r}
+data <- read.csv('all_years_leafs_final - all_years_leafs_final.csv')
+summary(data)
+str(data)
+```
+
+
+# All Variables (69-70%)
+```{r}
+# Convert columns to appropriate types
+columns <- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area", "Leaf_No")
+
+# Convert columns to numeric, handling non-numeric values by converting them to NA first
+data <- data %>%
+  mutate(across(all_of(columns), ~ as.numeric(as.character(.)))) %>%
+  mutate(across(all_of(columns), ~ ifelse(is.na(.), median(., na.rm = TRUE), .)))
+
+# Convert necessary columns to factors
+data$Treatment_ID <- as.factor(data$Treatment_ID)
+data$Genotype_ID <- as.factor(data$Genotype_ID)
+data$Leaf_No <- as.factor(data$Leaf_No)
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Split data into 80% training and 20% remaining
+train_index <- createDataPartition(data$Genotype_ID, p = 0.8, list = FALSE)
+train_data <- data[train_index, ]
+remaining_data <- data[-train_index, ]
+
+# Split the remaining data into 50% validation and 50% test (which is 10% of the original data each)
+validation_index <- createDataPartition(remaining_data$Genotype_ID, p = 0.5, list = FALSE)
+validation_data <- remaining_data[validation_index, ]
+test_data <- remaining_data[-validation_index, ]
+
+# Ensure levels of factors are consistent
+train_data$Genotype_ID <- factor(train_data$Genotype_ID, levels = levels(data$Genotype_ID))
+validation_data$Genotype_ID <- factor(validation_data$Genotype_ID, levels = levels(data$Genotype_ID))
+test_data$Genotype_ID <- factor(test_data$Genotype_ID, levels = levels(data$Genotype_ID))
+
+# Retrieve available cores
+cl <- makeCluster(detectCores() - 1)
+# Parallel processing
+registerDoParallel(cl)
+
+# Train a Random Forest model with hyperparameter tuning
+tune_grid <- expand.grid(mtry = seq(1, ncol(train_data) - 1, by = 1))  # Adjust mtry values
+control <- trainControl(method = "cv", number = 10, search = "grid")
+
+model_rf <- train(Genotype_ID ~ Blade_Length + Blade_Width + Sheath_Length + Surface_Area + Leaf_No + Treatment_ID, 
+                  data = train_data, 
+                  method = 'rf', 
+                  trControl = control,
+                  tuneGrid = tune_grid,  
+                  ntree = 500,  # Increase number of trees
+                  importance = TRUE)  # Calculate variable importance
+
+stopCluster(cl)
+
+# Validate the model on the validation set
+validation_predictions <- predict(model_rf, validation_data)
+validation_confusion_matrix <- confusionMatrix(validation_predictions, validation_data$Genotype_ID)
+
+print(validation_confusion_matrix)
+
+# Test the model on the test set
+test_predictions <- predict(model_rf, test_data)
+test_confusion_matrix <- confusionMatrix(test_predictions, test_data$Genotype_ID)
+
+print(test_confusion_matrix)
+
+# Print model details
+print(model_rf)
+
+# Variable importance
+var_imp <- varImp(model_rf)
+plot(var_imp)
+
+var_imp_plot <- ggplot(var_imp, aes(x = reorder(Overall, Overall), y = Overall)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Variable Importance", x = "Variables", y = "Importance")
+
+print(var_imp_plot)
+
+# Correlation plot
+numeric_data <- data[, sapply(data, is.numeric)]
+correlation_matrix <- cor(numeric_data, use = "complete.obs")
+correlation_plot <- corrplot(correlation_matrix, method = "color", tl.col = "black", tl.cex = 0.8)
+
+correlation_df <- melt(correlation_matrix)
+correlation_plot_gg <- ggplot(correlation_df, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0) +
+  theme_minimal() +
+  labs(title = "Correlation Matrix", x = "", y = "") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(correlation_plot_gg)
+```
+
+SVM ()
+```{r}
+columns<- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area", "Leaf_No")
+
+data <- data %>%
+  mutate_at(vars(one_of(columns)), as.integer)
+
+data <- data %>%
+  mutate_at(vars(one_of(columns)), ~ifelse(is.na(.), median(., na.rm = TRUE), .))
+
+data$Treatment_ID <- as.factor(data$Treatment_ID)
+data$Genotype_ID <- as.factor(data$Genotype_ID)
+
+set.seed(123)
+train_index <- createDataPartition(data$Genotype_ID, p = 0.8, list = FALSE)
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+
+model_svm <- svm(Genotype_ID ~ Blade_Length + Blade_Width + Sheath_Length + Surface_Area + Leaf_No + Treatment_ID, data=train_data)
+summary(model_svm)
+
+predictor_columns <- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area", "Leaf_No")
+
+train_data[predictor_columns] <- scale(train_data[predictor_columns])
+test_data[predictor_columns] <- scale(test_data[predictor_columns])
+
+pred <- predict(model_svm, test_data)
+confusionMatrix(pred, test_data$Genotype_ID)
+```
+
+```{r}
+columns <- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area", "Leaf_No")
+
+data <- data %>%
+  mutate_at(vars(one_of(columns)), as.integer)
+
+data <- data %>%
+  mutate_at(vars(one_of(columns)), ~ifelse(is.na(.), median(., na.rm = TRUE), .))
+
+data$Treatment_ID <- as.factor(data$Treatment_ID)
+data$Genotype_ID <- as.factor(data$Genotype_ID)
+
+set.seed(123)
+train_index <- createDataPartition(data$Treatment_ID, p = 0.8, list = FALSE)
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+
+# Feature Engineering: Adding interaction terms and polynomial features
+train_data <- train_data %>%
+  mutate(Blade_Length_Width = Blade_Length * Blade_Width,
+         Sheath_Surface = Sheath_Length * Surface_Area,
+         Blade_Length2 = Blade_Length^2,
+         Blade_Width2 = Blade_Width^2)
+
+test_data <- test_data %>%
+  mutate(Blade_Length_Width = Blade_Length * Blade_Width,
+         Sheath_Surface = Sheath_Length * Surface_Area,
+         Blade_Length2 = Blade_Length^2,
+         Blade_Width2 = Blade_Width^2)
+
+# Updating predictor columns
+predictor_columns <- c("Blade_Length", "Blade_Width", "Sheath_Length", "Surface_Area", "Leaf_No",
+                       "Blade_Length_Width", "Sheath_Surface", "Blade_Length2", "Blade_Width2")
+
+train_data[predictor_columns] <- scale(train_data[predictor_columns])
+test_data[predictor_columns] <- scale(test_data[predictor_columns])
+
+train_x <- train_data[, predictor_columns]
+train_y <- train_data$Treatment_ID
+test_x <- test_data[, predictor_columns]
+test_y <- test_data$Treatment_ID
+
+# Finding the optimal value of k using cross-validation
+k_values <- 1:20
+accuracy <- map_dbl(k_values, function(k) {
+  knn_pred <- knn(train = train_x, test = test_x, cl = train_y, k = k)
+  conf_matrix <- confusionMatrix(knn_pred, test_y)
+  conf_matrix$overall['Accuracy']
+})
+
+# Plotting accuracy vs. k
+accuracy_df <- data.frame(k = k_values, accuracy = accuracy)
+ggplot(accuracy_df, aes(x = k, y = accuracy)) + 
+  geom_line() + 
+  geom_point() + 
+  labs(title = "Accuracy vs. k", x = "k", y = "Accuracy") + 
+  theme_minimal()
+
+# Best k
+best_k <- k_values[which.max(accuracy)]
+cat("Best k:", best_k, "\n")
+
+# Final model with best k
+knn_pred <- knn(train = train_x, test = test_x, cl = train_y, k = best_k)
+conf_matrix <- confusionMatrix(knn_pred, test_y)
+print(conf_matrix)
+```
