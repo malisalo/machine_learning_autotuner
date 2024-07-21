@@ -12,6 +12,8 @@ library(Hmisc)
 
 # Data Imputation Methods
 perform_imputation <- function(technique, data) {
+  # Convert all character columns to factors
+  data <- data %>% mutate_if(is.character, as.factor)
   func <- match.fun(technique)
   imputed_data <- func(data)
   return(imputed_data)
