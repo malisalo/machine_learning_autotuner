@@ -52,7 +52,7 @@ create_gbm <- function(data, predicting_var, training_split) {
   cm_gbm <- confusionMatrix(predictions_gbm, test[[predicting_var]])
   
   # Print confusion matrix and overall accuracy
-  result <- paste("Gradient Boosting\nAccuracy:",
+  result <- paste("Gradient Boosting - Accuracy:",
                   round(cm_gbm$overall['Accuracy'] * 100, 2),
                   "%")
   return(result)
@@ -93,7 +93,7 @@ create_rf <- function(data, predicting_var, training_split) {
   cm_rf <- confusionMatrix(predictions, test[[predicting_var]])
   
   # Print confusion matrix and overall accuracy
-  result <- paste("Random Forest\nAccuracy:",
+  result <- paste("Random Forest - Accuracy:",
                   round(cm_rf$overall['Accuracy'] * 100, 2),
                   "%")
   return(result)
@@ -138,7 +138,7 @@ create_knn <- function(data, predicting_var, training_split) {
   cm_knn <- confusionMatrix(predictions_knn, test[[predicting_var]])
   
   # Print confusion matrix and overall accuracy
-  result <- paste("KNN\nAccuracy:", round(cm_knn$overall['Accuracy'] * 100, 2), "%")
+  result <- paste("KNN - Accuracy:", round(cm_knn$overall['Accuracy'] * 100, 2), "%")
   return(result)
 }
 
@@ -174,6 +174,6 @@ create_svm <- function(data, predicting_var, training_split) {
   cm <- confusionMatrix(predictions, test[[predicting_var]])
   
   # Print confusion matrix and accuracy
-  result <- paste("SVM\nAccuracy:", round(cm$overall['Accuracy'] * 100, 2), "%")
+  result <- paste("SVM - Accuracy:", round(cm$overall['Accuracy'] * 100, 2), "%")
   return(result)
 }
