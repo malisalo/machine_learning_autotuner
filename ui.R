@@ -42,13 +42,13 @@ ui <- page_sidebar(
       card(
         card_header("Select Models to Train"),
         checkboxGroupInput(
-          inputId = NULL,
+          inputId = "model_selection",
           label = NULL,
           choices = list(
-            "Random Forest"= "create_rf",
-            "K Nearest Neighbors"= "create_knn",
-            "Gradient Boosting"= "create_gbm", 
-            "Support Vector Model"= "create_svm"
+            "Random Forest" = "create_rf",
+            "K Nearest Neighbors" = "create_knn",
+            "Gradient Boosting" = "create_gbm", 
+            "Support Vector Model" = "create_svm"
           )
         )
       ),
@@ -66,11 +66,11 @@ ui <- page_sidebar(
     ),
     div(class = "resize-handle")
   ),
-  
   navset_card_underline(
     nav_panel("Dataset", tableOutput("data_preview")),
     nav_panel("Imputations"),
-    nav_panel("Model Results", textOutput("model_output"))
+    nav_panel("Model Results", uiOutput("model_results_ui")),
+    nav_panel("Feature Importance")
   ),
   tags$head(tags$style(
     HTML(

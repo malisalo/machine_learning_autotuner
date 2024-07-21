@@ -9,9 +9,13 @@ library(gbm)
 library(mice)
 library(Hmisc)
 
-# Define server logic ----
+# Source the models file
+source("models.R")
+source("imputations.R")
+
+# Define server logic
 server <- function(input, output, session) {
-  bs_themer()
+  # bs_themer()
   
   # Directory to save uploaded files
   save_dir <- "uploads"
@@ -56,22 +60,39 @@ server <- function(input, output, session) {
     predicting_var <- input$Predictive
     imputation_technique <- input$Imputation
     training_split <- input$Train_Set / 100
+    selected_models <- input$model_selection
     
     # Perform imputation
     imputed_data <- perform_imputation(imputation_technique, df)
     
-    # Convert all character columns to factors
-    imputed_data <- imputed_data %>% mutate_if(is.character, as.factor)
+    # Initialize a list to store model results
+    model_results <- list()
     
-    # Run models and capture outputs
-    knn_result <- create_knn(imputed_data, predicting_var, training_split)
-    svm_result <- create_svm(imputed_data, predicting_var, training_split)
-    gbm_result <- create_gbm(imputed_data, predicting_var, training_split)
-    # rf_result <- create_rf(imputed_data, predicting_var, training_split)
+    # Run selected models and capture outputs
+    for (model in selected_models) {
+      model_func <- get(model)
+      result <- model_func(imputed_data, predicting_var, training_split)
+      model_results[[model]] <- result
+    }
     
-    # Display results
-    output$model_output <- renderText({
-      paste(knn_result, svm_result, gbm_result, sep = "\n\n")
+    # Render the model results
+    output$model_results_ui <- renderUI({
+      output_list <- lapply(names(model_results), function(model) {
+        tagList(
+          h3(model),
+          verbatimTextOutput(paste0("result_", model))
+        )
+      })
+      do.call(tagList, output_list)
     })
+    
+    for (model in names(model_results)) {
+      local({
+        model_name <- model
+        output[[paste0("result_", model_name)]] <- renderPrint({
+          model_results[[model_name]]
+        })
+      })
+    }
   })
 }
