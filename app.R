@@ -91,65 +91,67 @@ ui <- page_sidebar(
   ),
   navset_card_underline(
     nav_panel("Dataset", tableOutput("data_preview")),
-    nav_panel("Imputations"),
     nav_panel("Model Results", uiOutput("model_results_ui")),
     nav_panel("Feature Importance", plotOutput("var_imp_plot"), plotOutput("corr_plot"))
   ),
-  tags$head(tags$style(
-    HTML(
-      "
-      .sidebar-container {
-        display: flex;
-        flex-direction: column;
-        height: 100vh;
-        width: 250px;
-        min-width: 200px;
-        overflow-y: hidden;
-        position: relative;
-      }
-      .sidebar-content {
-        flex: 1;
-        overflow-y: auto;
-        padding: 10px;
-      }
-      .resize-handle {
-        width: 5px;
-        cursor: ew-resize;
-        background-color: #ddd;
-        position: absolute;
-        top: 0,
-        right: 0,
-        bottom: 0;
-      }
-    "
-    )
-  ), tags$script(
-    HTML(
-      "
-      $(document).on('shiny:connected', function() {
-        var startX, startWidth;
-        $('.resize-handle').on('mousedown', function(e) {
-          startX = e.clientX;
-          startWidth = $('.sidebar-container').width();
-          $(document).on('mousemove', doDrag);
-          $(document).on('mouseup', stopDrag);
-        });
+  tags$head(
+    tags$style(
+      HTML(
+        "
+        .sidebar-container {
+          display: flex;
+          flex-direction: column;
+          height: 100vh;
+          width: 250px;
+          min-width: 200px;
+          overflow-y: hidden;
+          position: relative;
+        }
+        .sidebar-content {
+          flex: 1;
+          overflow-y: auto;
+          padding: 10px;
+        }
+        .resize-handle {
+          width: 5px;
+          cursor: ew-resize;
+          background-color: #ddd;
+          position: absolute;
+          top: 0;
+          right: 0;
+          bottom: 0;
+        }
+        "
+      )
+    ),
+    tags$script(
+      HTML(
+        "
+        $(document).on('shiny:connected', function() {
+          var startX, startWidth;
+          $('.resize-handle').on('mousedown', function(e) {
+            startX = e.clientX;
+            startWidth = $('.sidebar-container').width();
+            $(document).on('mousemove', doDrag);
+            $(document).on('mouseup', stopDrag);
+          });
 
-        function doDrag(e) {
-          var newWidth = startWidth + (e.clientX - startX);
-          if (newWidth >= 200) {
-            $('.sidebar-container').css('width', newWidth);
+          function doDrag(e) {
+            var newWidth = startWidth + (e.clientX - startX);
+            if (newWidth >= 200) {
+              $('.sidebar-container').css('width', newWidth);
+            }
           }
-        }
 
-        function stopDrag() {
-          $(document).off('mousemove', doDrag);
-          $(document).off('mouseup', stopDrag);
-        }
-      });
-    "
+          function stopDrag() {
+            $(document).off('mousemove', doDrag);
+            $(document).off('mouseup', stopDrag);
+          }
+        });
+        "
+      )
     )
-  ))
+  )
 )
 
 # Define server logic
