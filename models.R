@@ -52,7 +52,10 @@ create_gbm <- function(data, predicting_var, training_split) {
 create_rf <- function(data, predicting_var, training_split) {
   # Split the data
   set.seed(123)
-  trainIndex <- createDataPartition(data[[predicting_var]], p = training_split, list = FALSE, times = 1)
+  trainIndex <- createDataPartition(data[[predicting_var]],
+                                    p = training_split,
+                                    list = FALSE,
+                                    times = 1)
   train_data <- data[trainIndex, ]
   test_data <- data[-trainIndex, ]
   
@@ -126,7 +129,9 @@ create_knn <- function(data, predicting_var, training_split) {
   tune_grid <- expand.grid(k = 1:100)
   
   # Train control with cross-validation
-  train_control <- trainControl(method = "cv", number = 5, search = "grid")
+  train_control <- trainControl(method = "cv",
+                                number = 5,
+                                search = "grid")
   
   # Train the KNN model with hyperparameter tuning
   knn_tuned <- train(
@@ -171,8 +176,7 @@ create_svm <- function(data, predicting_var, training_split) {
   train_control <- trainControl(method = "cv", number = 5)
   
   # Define hyperparameter grid for tuning
-  svm_grid <- expand.grid(C = 2^(-5:2), 
-                          sigma = 2^(-15:3)) # Radial basis function kernel parameters
+  svm_grid <- expand.grid(C = 2 ^ (-5:2), sigma = 2 ^ (-15:3)) # Radial basis function kernel parameters
   
   # Train the SVM model with hyperparameter tuning
   svm_model <- train(

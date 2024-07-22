@@ -67,12 +67,13 @@ server <- function(input, output, session) {
       output_list <- lapply(names(model_results), function(model) {
         result <- model_results[[model]]
         model_display_name <- model_names[model]  # Get the user-friendly name
-        tagList(
-          h3(model_display_name),  # Display the user-friendly name
-          h4(paste("Accuracy:", result$accuracy, "%")),
-          DTOutput(paste0("confusion_matrix_", model)), 
-          hr()
-        )
+        tagList(h3(model_display_name),
+                # Display the user-friendly name
+                h4(paste(
+                  "Accuracy:", result$accuracy, "%"
+                )),
+                DTOutput(paste0("confusion_matrix_", model)),
+                hr())
       })
       do.call(tagList, output_list)
     })
@@ -82,11 +83,14 @@ server <- function(input, output, session) {
         model_name <- model
         result <- model_results[[model_name]]
         output[[paste0("confusion_matrix_", model_name)]] <- renderDT({
-          datatable(result$confusion_matrix, options = list(
-            pageLength = 5, 
-            autoWidth = TRUE,
-            searching = FALSE  # Disable the search bar
-          ))
+          datatable(
+            result$confusion_matrix,
+            options = list(
+              pageLength = 5,
+              autoWidth = TRUE,
+              searching = FALSE  # Disable the search bar
+            )
+          )
         })
       })
     }
@@ -95,10 +99,7 @@ server <- function(input, output, session) {
       code_list <- lapply(names(model_params), function(model) {
         params <- model_params[[model]]
         model_display_name <- model_names[model]
-        tagList(
-          h3(model_display_name),
-          verbatimTextOutput(paste0("code_", model))
-        )
+        tagList(h3(model_display_name), verbatimTextOutput(paste0("code_", model)))
       })
       do.call(tagList, code_list)
     })
