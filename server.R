@@ -1,86 +1,77 @@
 library(shiny)
 library(bslib)
-library(caret)
-library(missForest)
 library(dplyr)
-library(e1071)
-library(randomForest)
-library(gbm)
-library(mice)
-library(Hmisc)
+library(DT)
 
 # Source the models file
 source("models.R")
 source("imputations.R")
 
+# Define user-friendly names for models
+model_names <- c(
+  "create_rf" = "Random Forest",
+  "create_knn" = "K Nearest Neighbors",
+  "create_gbm" = "Gradient Boosting",
+  "create_svm" = "Support Vector Machine"
+)
+
 # Define server logic
 server <- function(input, output, session) {
-  # bs_themer()
-  
   # Directory to save uploaded files
   save_dir <- "uploads"
   dir.create(save_dir, showWarnings = FALSE)
   
   # Reactive expression to read the uploaded file
   dataset <- reactive({
-    req(input$file)  # Ensure a file is uploaded
-    
-    # File path for the uploaded file
+    req(input$file)
     file <- input$file$datapath
-    
-    # Save the file to the server directory
     save_path <- file.path(save_dir, input$file$name)
     file.copy(file, save_path, overwrite = TRUE)
-    
-    # Read the file into a dataframe
-    df <- read.csv(save_path, stringsAsFactors = FALSE)
-    return(df)
+    read.csv(save_path, stringsAsFactors = FALSE)
   })
   
   # Observe the dataset and update UI inputs based on the dataset's column names
   observe({
     req(dataset())
     cols <- names(dataset())
-    
     updateSelectInput(session, "Predictive", choices = cols)
     updateCheckboxGroupInput(session, "Features", choices = cols)
   })
   
   # Output: Display a preview of the dataframe
   output$data_preview <- renderTable({
-    req(dataset())  # Ensure that the dataset is available
-    head(dataset(), 10)  # Show the first 10 rows of the dataframe
+    req(dataset())
+    head(dataset(), 10)
   })
   
   observeEvent(input$run_model, {
-    # Get the dataset
     df <- dataset()
-    
-    # Get user inputs
     predicting_var <- input$Predictive
     imputation_technique <- input$Imputation
     training_split <- input$Train_Set / 100
     selected_models <- input$model_selection
     
-    # Perform imputation
     imputed_data <- perform_imputation(imputation_technique, df)
     
-    # Initialize a list to store model results
     model_results <- list()
+    model_params <- list()
     
-    # Run selected models and capture outputs
     for (model in selected_models) {
       model_func <- get(model)
       result <- model_func(imputed_data, predicting_var, training_split)
       model_results[[model]] <- result
+      model_params[[model]] <- result$best_params
     }
     
-    # Render the model results
     output$model_results_ui <- renderUI({
       output_list <- lapply(names(model_results), function(model) {
+        result <- model_results[[model]]
+        model_display_name <- model_names[model]  # Get the user-friendly name
         tagList(
-          h3(model),
-          verbatimTextOutput(paste0("result_", model))
+          h3(model_display_name),  # Display the user-friendly name
+          h4(paste("Accuracy:", result$accuracy, "%")),
+          DTOutput(paste0("confusion_matrix_", model)), 
+          hr()
         )
       })
       do.call(tagList, output_list)
@@ -89,8 +80,35 @@ server <- function(input, output, session) {
     for (model in names(model_results)) {
       local({
         model_name <- model
-        output[[paste0("result_", model_name)]] <- renderPrint({
-          model_results[[model_name]]
+        result <- model_results[[model_name]]
+        output[[paste0("confusion_matrix_", model_name)]] <- renderDT({
+          datatable(result$confusion_matrix, options = list(
+            pageLength = 5, 
+            autoWidth = TRUE,
+            searching = FALSE  # Disable the search bar
+          ))
+        })
+      })
+    }
+    
+    output$model_code_ui <- renderUI({
+      code_list <- lapply(names(model_params), function(model) {
+        params <- model_params[[model]]
+        model_display_name <- model_names[model]
+        tagList(
+          h3(model_display_name),
+          verbatimTextOutput(paste0("code_", model))
+        )
+      })
+      do.call(tagList, code_list)
+    })
+    
+    for (model in names(model_params)) {
+      local({
+        model_name <- model
+        params <- model_params[[model_name]]
+        output[[paste0("code_", model_name)]] <- renderPrint({
+          params
         })
       })
     }

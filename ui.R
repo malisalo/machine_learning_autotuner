@@ -1,5 +1,6 @@
 library(shiny)
 library(bslib)
+library(shinycssloaders)
 
 # Define UI ----
 ui <- page_sidebar(
@@ -47,7 +48,7 @@ ui <- page_sidebar(
           choices = list(
             "Random Forest" = "create_rf",
             "K Nearest Neighbors" = "create_knn",
-            "Gradient Boosting" = "create_gbm", 
+            "Gradient Boosting" = "create_gbm",
             "Support Vector Model" = "create_svm"
           )
         )
@@ -68,8 +69,8 @@ ui <- page_sidebar(
   ),
   navset_card_underline(
     nav_panel("Dataset", tableOutput("data_preview")),
-    nav_panel("Imputations"),
-    nav_panel("Model Results", uiOutput("model_results_ui")),
+    nav_panel("Model Results", withSpinner(uiOutput("model_results_ui"))),
+    nav_panel("Model Code", withSpinner(uiOutput("model_code_ui"))),
     nav_panel("Feature Importance")
   ),
   tags$head(tags$style(
