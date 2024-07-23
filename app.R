@@ -96,7 +96,7 @@ ui <- page_sidebar(
     id = "main_navset",
     nav_panel("Dataset", withSpinner(tableOutput("data_preview"))),
     nav_panel("Model Results", withSpinner(uiOutput("model_results_ui"))),
-    nav_panel("Feature Importance", withSpinner(plotOutput("var_imp_plot")), withSpinner(plotOutput("corr_plot")))
+    nav_panel("Feature Importance", withSpinner(plotOutput("corr_plot")))
   ),
   tags$head(
     tags$style(
@@ -204,7 +204,6 @@ server <- function(input, output, session) {
   observeEvent(input$run_model, {
     # Show spinner by resetting UI elements
     output$model_results_ui <- renderUI({})
-    output$var_imp_plot <- renderPlot({})
     output$corr_plot <- renderPlot({})
     removeTab("main_navset", "RF Results")
     removeTab("main_navset", "KNN Results")
@@ -254,21 +253,19 @@ server <- function(input, output, session) {
       })
     }
     
-    # Generate and render variable importance plot and correlation plot
-    if ("create_rf" %in% selected_models) {
-      rf_result <- model_results[["create_rf"]]
-      output$var_imp_plot <- renderPlot({
-        plot_var_importance(rf_result$var_imp)
-      })
-      output$rf_conf_matrix_plot <- renderPlot({
-        plot_confusion_matrix(rf_result$confusion_matrix)
-      })
-      appendTab("main_navset", nav_panel("RF Results", withSpinner(plotOutput("rf_conf_matrix_plot"))))
-    }
-    
+    # Generate and render correlation plot
     output$corr_plot <- renderPlot({
       plot_correlation_matrix(imputed_data)
     })
+    
+    # Generate and render model-specific plots
+    if ("create_rf" %in% selected_models) {
+      rf_result <- model_results[["create_rf"]]
+      output$rf_var_imp_plot <- renderPlot({
+        plot_var_importance(rf_result$var_imp)
+      })
+      appendTab("main_navset", nav_panel("RF Results", withSpinner(plotOutput("rf_var_imp_plot"))))
+    }
     
     if ("create_knn" %in% selected_models) {
       knn_result <- model_results[["create_knn"]]
