@@ -4,6 +4,7 @@ library(randomForest)
 library(gbm)
 library(caret)
 
+# Gradient Boosting
 create_gbm <- function(data, predicting_var, training_split) {
   set.seed(123)
   trainIndex <- createDataPartition(data[[predicting_var]],
@@ -114,7 +115,7 @@ create_rf <- function(data, predicting_var, training_split) {
   )
 }
 
-# KNN
+# K Nearest Neighbors
 create_knn <- function(data, predicting_var, training_split) {
   # Split the data into training and test sets
   set.seed(123)
