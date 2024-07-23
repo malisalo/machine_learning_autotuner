@@ -182,12 +182,13 @@ create_gbm <- function(data, predicting_var, training_split) {
   cm_gbm <- confusionMatrix(predictions_gbm, test[[predicting_var]])
   
   # Print confusion matrix and overall accuracy
-  result <- paste("Gradient Boosting - Accuracy:",
-                  round(cm_gbm$overall['Accuracy'] * 100, 2),
-                  "%")
+  result <- list(
+    accuracy = round(cm_gbm$overall['Accuracy'] * 100, 2),
+    confusion_matrix = cm_gbm
+  )
+  
   return(result)
 }
-
 
 # Function to generate variable importance plot
 plot_var_importance <- function(var_imp) {
@@ -195,13 +196,15 @@ plot_var_importance <- function(var_imp) {
     geom_bar(stat = "identity") +
     coord_flip() +
     theme_minimal() +
-    labs(title = "Variable Importance", x = "Variables", y = "Importance")
+    labs(title = "RF Variable Importance", x = "Variables", y = "Importance")
   
   return(var_imp_plot)
 }
 
 # Function to generate correlation matrix plot
-plot_correlation_matrix <- function(correlation_matrix) {
+plot_correlation_matrix <- function(data) {
+  numeric_data <- data[, sapply(data, is.numeric)]
+  correlation_matrix <- cor(numeric_data, use = "complete.obs")
   correlation_df <- melt(correlation_matrix)
   correlation_plot_gg <- ggplot(correlation_df, aes(Var1, Var2, fill = value)) +
     geom_tile() +
@@ -211,4 +214,15 @@ plot_correlation_matrix <- function(correlation_matrix) {
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
   
   return(correlation_plot_gg)
+}
+
+# Function to plot confusion matrix heatmap
+plot_confusion_matrix <- function(conf_matrix) {
+  cm_df <- as.data.frame(conf_matrix$table)
+  cm_plot <- ggplot(cm_df, aes(x = Prediction, y = Reference, fill = Freq)) +
+    geom_tile() +
+    scale_fill_gradient(low = "white", high = "red") +
+    theme_minimal() +
+    labs(title = "Confusion Matrix Heatmap", x = "Predicted", y = "Actual")
+  return(cm_plot)
 }

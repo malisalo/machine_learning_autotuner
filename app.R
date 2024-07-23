@@ -11,6 +11,8 @@ library(Hmisc)
 library(ggplot2)
 library(corrplot)
 library(reshape2)
+library(shinycssloaders)
+library(shinyjs)
 
 # Source the models file
 source("models.R")
@@ -19,6 +21,7 @@ source("imputations.R")
 # Define UI ----
 ui <- page_sidebar(
   title = "Maize Data ML Dashboard",
+  useShinyjs(),  # Initialize shinyjs
   sidebar = sidebar(
     class = "sidebar-container",
     div(
@@ -90,9 +93,10 @@ ui <- page_sidebar(
     div(class = "resize-handle")
   ),
   navset_card_underline(
-    nav_panel("Dataset", tableOutput("data_preview")),
-    nav_panel("Model Results", uiOutput("model_results_ui")),
-    nav_panel("Feature Importance", plotOutput("var_imp_plot"), plotOutput("corr_plot"))
+    id = "main_navset",
+    nav_panel("Dataset", withSpinner(tableOutput("data_preview"))),
+    nav_panel("Model Results", withSpinner(uiOutput("model_results_ui"))),
+    nav_panel("Feature Importance", withSpinner(plotOutput("var_imp_plot")), withSpinner(plotOutput("corr_plot")))
   ),
   tags$head(
     tags$style(
@@ -186,7 +190,7 @@ server <- function(input, output, session) {
     numerical_vars <- names(df)[sapply(df, is.numeric)]
     categorical_vars <- setdiff(names(df), numerical_vars)
     
-    updateSelectInput(session, "Predictive", choices = names(df))
+    updateSelectInput(session, "Predictive", choices = categorical_vars)
     updateCheckboxGroupInput(session, "Numerical", choices = numerical_vars)
     updateCheckboxGroupInput(session, "Categorical", choices = categorical_vars)
   })
@@ -198,6 +202,14 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$run_model, {
+    # Show spinner by resetting UI elements
+    output$model_results_ui <- renderUI({})
+    output$var_imp_plot <- renderPlot({})
+    output$corr_plot <- renderPlot({})
+    removeTab("main_navset", "RF Results")
+    removeTab("main_navset", "KNN Results")
+    removeTab("main_navset", "SVM Results")
+    
     # Get the dataset
     df <- dataset()
     
@@ -248,9 +260,30 @@ server <- function(input, output, session) {
       output$var_imp_plot <- renderPlot({
         plot_var_importance(rf_result$var_imp)
       })
-      output$corr_plot <- renderPlot({
-        plot_correlation_matrix(rf_result$correlation_matrix)
+      output$rf_conf_matrix_plot <- renderPlot({
+        plot_confusion_matrix(rf_result$confusion_matrix)
       })
+      appendTab("main_navset", nav_panel("RF Results", withSpinner(plotOutput("rf_conf_matrix_plot"))))
+    }
+    
+    output$corr_plot <- renderPlot({
+      plot_correlation_matrix(imputed_data)
+    })
+    
+    if ("create_knn" %in% selected_models) {
+      knn_result <- model_results[["create_knn"]]
+      output$knn_conf_matrix_plot <- renderPlot({
+        plot_confusion_matrix(knn_result$confusion_matrix)
+      })
+      appendTab("main_navset", nav_panel("KNN Results", withSpinner(plotOutput("knn_conf_matrix_plot"))))
+    }
+    
+    if ("create_svm" %in% selected_models) {
+      svm_result <- model_results[["create_svm"]]
+      output$svm_conf_matrix_plot <- renderPlot({
+        plot_confusion_matrix(svm_result$confusion_matrix)
+      })
+      appendTab("main_navset", nav_panel("SVM Results", withSpinner(plotOutput("svm_conf_matrix_plot"))))
     }
   })
 }
