@@ -69,8 +69,8 @@ ui <- page_sidebar(
   ),
   navset_card_underline(
     nav_panel("Dataset", tableOutput("data_preview")),
-    nav_panel("Model Results", withSpinner(uiOutput("model_results_ui"))),
-    nav_panel("Model Code", withSpinner(uiOutput("model_code_ui"))),
+    nav_panel("Model Results",uiOutput("model_results_ui")),
+    nav_panel("Model Code", uiOutput("model_code_ui")),
     nav_panel("Feature Importance")
   ),
   tags$head(tags$style(
@@ -98,8 +98,7 @@ ui <- page_sidebar(
         top: 0;
         right: 0;
         bottom: 0;
-      }
-    "
+      }"
     )
   ), tags$script(
     HTML(
@@ -126,6 +125,6 @@ ui <- page_sidebar(
         }
       });
     "
-    )
+    ),
   ))
 )
