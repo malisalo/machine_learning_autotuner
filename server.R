@@ -2,7 +2,7 @@ library(shiny)
 library(bslib)
 library(dplyr)
 library(DT)
-library(shinycssloaders)  # Added to use withSpinner
+library(shinycssloaders)
 
 # Source the models and code generation files
 source("models.R")
@@ -106,8 +106,9 @@ server <- function(input, output, session) {
               options = list(
                 pageLength = 5,
                 autoWidth = TRUE,
-                searching = FALSE  # Disable the search bar
-              )
+                searching = FALSE
+              ),
+              rownames=FALSE
             )
           })
         })
@@ -117,7 +118,7 @@ server <- function(input, output, session) {
         code_list <- lapply(names(model_code), function(model) {
           code <- model_code[[model]]
           model_display_name <- model_names[model]
-          tagList(h3(model_display_name), shinycssloaders::withSpinner(verbatimTextOutput(paste0("code_", model))))
+          tagList(h3(model_display_name), verbatimTextOutput(paste0("code_", model)))
         })
         do.call(tagList, code_list)
       })
@@ -131,6 +132,6 @@ server <- function(input, output, session) {
           })
         })
       }
-    })  # End of withProgress
+    })
   })
 }
