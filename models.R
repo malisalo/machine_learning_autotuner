@@ -5,7 +5,7 @@ library(gbm)
 library(caret)
 
 # Gradient Boosting
-create_gbm <- function(data, predicting_var, training_split) {
+create_gbm <- function(data, predicting_var, training_split, models_amount) {
   set.seed(123)
   trainIndex <- createDataPartition(data[[predicting_var]],
                                     p = training_split,
@@ -14,12 +14,6 @@ create_gbm <- function(data, predicting_var, training_split) {
   train <- data[trainIndex, ]
   test <- data[-trainIndex, ]
   
-  tune_grid <- expand.grid(
-    n.trees = c(50, 100, 150),
-    interaction.depth = c(1, 3, 5),
-    shrinkage = c(0.01, 0.1, 0.3),
-    n.minobsinnode = 10
-  )
   train_control <- trainControl(method = "cv", number = 5)
   
   gbm_model <- train(
@@ -27,7 +21,7 @@ create_gbm <- function(data, predicting_var, training_split) {
     data = train,
     method = "gbm",
     metric = "Accuracy",
-    tuneGrid = tune_grid,
+    tuneLength = models_amount,
     trControl = train_control,
     verbose = FALSE
   )
@@ -50,7 +44,7 @@ create_gbm <- function(data, predicting_var, training_split) {
 
 
 # Random Forest
-create_rf <- function(data, predicting_var, training_split) {
+create_rf <- function(data, predicting_var, training_split, models_amount) {
   # Split the data
   set.seed(123)
   trainIndex <- createDataPartition(data[[predicting_var]],
@@ -116,7 +110,7 @@ create_rf <- function(data, predicting_var, training_split) {
 }
 
 # K Nearest Neighbors
-create_knn <- function(data, predicting_var, training_split) {
+create_knn <- function(data, predicting_var, training_split, models_amount) {
   # Split the data into training and test sets
   set.seed(123)
   trainIndex <- createDataPartition(data[[predicting_var]],
@@ -126,13 +120,8 @@ create_knn <- function(data, predicting_var, training_split) {
   train <- data[trainIndex, ]
   test <- data[-trainIndex, ]
   
-  # Set up the tuning grid for k
-  tune_grid <- expand.grid(k = 1:100)
-  
   # Train control with cross-validation
-  train_control <- trainControl(method = "cv",
-                                number = 5,
-                                search = "grid")
+  train_control <- trainControl(method = "cv", number = 5, search = "grid")
   
   # Train the KNN model with hyperparameter tuning
   knn_tuned <- train(
@@ -140,7 +129,7 @@ create_knn <- function(data, predicting_var, training_split) {
     data = train,
     method = "knn",
     metric = "Accuracy",
-    tuneGrid = tune_grid,
+    tuneLength = models_amount,
     trControl = train_control
   )
   
@@ -162,7 +151,7 @@ create_knn <- function(data, predicting_var, training_split) {
 }
 
 # SVM Classifier
-create_svm <- function(data, predicting_var, training_split) {
+create_svm <- function(data, predicting_var, training_split, models_amount) {
   data[[predicting_var]] <- as.factor(data[[predicting_var]])
   
   set.seed(123)
@@ -185,7 +174,7 @@ create_svm <- function(data, predicting_var, training_split) {
     data = train,
     method = "svmRadial",
     trControl = train_control,
-    tuneGrid = svm_grid
+    tuneLength = models_amount
   )
   
   # Print the best parameters

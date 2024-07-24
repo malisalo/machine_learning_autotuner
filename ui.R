@@ -54,6 +54,49 @@ ui <- page_sidebar(
         )
       ),
       card(
+        card_header("Number of Models Trained"),
+        conditionalPanel(
+          condition = "input.model_selection.indexOf('create_rf') !== -1",
+          sliderInput(
+            "models_amount_rf",
+            "# of Random Forests",
+            min = 0,
+            max = 100,
+            value = 50
+          )
+        ),
+        conditionalPanel(
+          condition = "input.model_selection.indexOf('create_knn') !== -1",
+          sliderInput(
+            "models_amount_knn",
+            "# of K Nearest Neighbors",
+            min = 0,
+            max = 250,
+            value = 125
+          )
+        ),
+        conditionalPanel(
+          condition = "input.model_selection.indexOf('create_gbm') !== -1",
+          sliderInput(
+            "models_amount_gbm",
+            "# of Gradient Boosting",
+            min = 0,
+            max = 30,
+            value = 15
+          )
+        ),
+        conditionalPanel(
+          condition = "input.model_selection.indexOf('create_svm') !== -1",
+          sliderInput(
+            "models_amount_svm",
+            "# of Support Vector Models",
+            min = 0,
+            max = 30,
+            value = 15
+          )
+        )
+      ),
+      card(
         card_header("Train Set"),
         sliderInput(
           "Train_Set",
@@ -70,7 +113,7 @@ ui <- page_sidebar(
   navset_card_underline(
     id = "main_navset",
     nav_panel("Dataset", tableOutput("data_preview")),
-    nav_panel("Model Results",uiOutput("model_results_ui")),
+    nav_panel("Model Results", uiOutput("model_results_ui")),
     nav_panel("Model Code", uiOutput("model_code_ui"))
   ),
   tags$head(tags$style(

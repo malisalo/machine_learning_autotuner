@@ -55,6 +55,10 @@ server <- function(input, output, session) {
       imputation_technique <- input$Imputation
       training_split <- input$Train_Set / 100
       selected_models <- input$model_selection
+      models_amount_rf <- input$models_amount_rf
+      models_amount_knn <- input$models_amount_knn
+      models_amount_gbm <- input$models_amount_gbm
+      models_amount_svm <- input$models_amount_svm
       
       imputed_data <- perform_imputation(imputation_technique, df)
       
@@ -66,18 +70,26 @@ server <- function(input, output, session) {
         incProgress(1 / length(selected_models), detail = paste("Processing", model))
         
         model_func <- get(model)
-        result <- model_func(imputed_data, predicting_var, training_split)
-        model_results[[model]] <- result
-        model_params[[model]] <- result$best_params
-        
         # Generate model setup code based on the best parameters
         if (model == "create_svm") {
+          result <- model_func(imputed_data, predicting_var, training_split, models_amount_svm)
+          model_results[[model]] <- result
+          model_params[[model]] <- result$best_params
           code <- create_code_svm(predicting_var, training_split, result$best_params)
         } else if (model == "create_rf") {
+          result <- model_func(imputed_data, predicting_var, training_split, models_amount_rf)
+          model_results[[model]] <- result
+          model_params[[model]] <- result$best_params
           code <- create_code_rf(predicting_var, training_split, result$best_params)
         } else if (model == "create_knn") {
+          result <- model_func(imputed_data, predicting_var, training_split, models_amount_knn)
+          model_results[[model]] <- result
+          model_params[[model]] <- result$best_params
           code <- create_code_knn(predicting_var, training_split, result$best_params)
         } else if (model == "create_gbm") {
+          result <- model_func(imputed_data, predicting_var, training_split, models_amount_gbm)
+          model_results[[model]] <- result
+          model_params[[model]] <- result$best_params
           code <- create_code_gbm(predicting_var, training_split, result$best_params)
         }
         model_code[[model]] <- code
