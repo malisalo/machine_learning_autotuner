@@ -32,7 +32,7 @@ server <- function(input, output, session) {
     read.csv(save_path, stringsAsFactors = FALSE)
   })
   
-  # Observe the dataset and update UI inputs based on the dataset's column names
+  # Update UI inputs based on dataset column names
   observe({
     req(dataset())
     cols <- names(dataset())
@@ -46,69 +46,59 @@ server <- function(input, output, session) {
     head(dataset(), 10)
   })
   
+  # Helper function to process models
+  process_model <- function(model_name, data, predicting_var, train_split, model_amount) {
+    model_func <- get(model_name)
+    result <- model_func(data, predicting_var, train_split, model_amount)
+    code_gen_func <- get(paste0("create_code_", sub("create_", "", model_name)))
+    list(
+      result = result,
+      params = result$best_params,
+      code = code_gen_func(predicting_var, train_split, result$best_params)
+    )
+  }
+  
   observeEvent(input$run_model, {
-    # Display the spinner while processing
     withProgress(message = 'Running models...', value = 0, {
-      
       df <- dataset()
       predicting_var <- input$Predictive
       imputation_technique <- input$Imputation
       training_split <- input$Train_Set / 100
       selected_models <- input$model_selection
-      models_amount_rf <- input$models_amount_rf
-      models_amount_knn <- input$models_amount_knn
-      models_amount_gbm <- input$models_amount_gbm
-      models_amount_svm <- input$models_amount_svm
+      models_amount <- list(
+        "create_rf" = input$models_amount_rf,
+        "create_knn" = input$models_amount_knn,
+        "create_gbm" = input$models_amount_gbm,
+        "create_svm" = input$models_amount_svm
+      )
       
       imputed_data <- perform_imputation(imputation_technique, df)
       
-      model_results <- list()
-      model_params <- list()
-      model_code <- list()
-      
-      for (model in selected_models) {
+      results <- lapply(selected_models, function(model) {
         incProgress(1 / length(selected_models), detail = paste("Processing", model))
-        
-        model_func <- get(model)
-        # Generate model setup code based on the best parameters
-        if (model == "create_svm") {
-          result <- model_func(imputed_data, predicting_var, training_split, models_amount_svm)
-          model_results[[model]] <- result
-          model_params[[model]] <- result$best_params
-          code <- create_code_svm(predicting_var, training_split, result$best_params)
-        } else if (model == "create_rf") {
-          result <- model_func(imputed_data, predicting_var, training_split, models_amount_rf)
-          model_results[[model]] <- result
-          model_params[[model]] <- result$best_params
-          code <- create_code_rf(predicting_var, training_split, result$best_params)
-        } else if (model == "create_knn") {
-          result <- model_func(imputed_data, predicting_var, training_split, models_amount_knn)
-          model_results[[model]] <- result
-          model_params[[model]] <- result$best_params
-          code <- create_code_knn(predicting_var, training_split, result$best_params)
-        } else if (model == "create_gbm") {
-          result <- model_func(imputed_data, predicting_var, training_split, models_amount_gbm)
-          model_results[[model]] <- result
-          model_params[[model]] <- result$best_params
-          code <- create_code_gbm(predicting_var, training_split, result$best_params)
-        }
-        model_code[[model]] <- code
-      }
-      
-      output$model_results_ui <- renderUI({
-        output_list <- lapply(names(model_results), function(model) {
-          result <- model_results[[model]]
-          model_display_name <- model_names[model]  # Get the user-friendly name
-          tagList(h3(model_display_name),
-                  # Display the user-friendly name
-                  h4(paste("Accuracy:", result$accuracy, "%")),
-                  DTOutput(paste0("confusion_matrix_", model)),
-                  hr())
-        })
-        do.call(tagList, output_list)
+        process_model(model, imputed_data, predicting_var, training_split, models_amount[[model]])
       })
       
-      for (model in names(model_results)) {
+      names(results) <- selected_models
+      model_results <- lapply(results, `[[`, "result")
+      model_params <- lapply(results, `[[`, "params")
+      model_code <- lapply(results, `[[`, "code")
+      
+      # Render model results
+      output$model_results_ui <- renderUI({
+        lapply(names(model_results), function(model) {
+          result <- model_results[[model]]
+          tagList(
+            h3(model_names[model]),
+            h4(paste("Accuracy:", result$accuracy, "%")),
+            DTOutput(paste0("confusion_matrix_", model)),
+            hr()
+          )
+        }) %>% do.call(tagList, .)
+      })
+      
+      # Render confusion matrices
+      lapply(names(model_results), function(model) {
         local({
           model_name <- model
           result <- model_results[[model_name]]
@@ -120,22 +110,23 @@ server <- function(input, output, session) {
                 autoWidth = TRUE,
                 searching = FALSE
               ),
-              rownames=FALSE
+              rownames = FALSE
             )
           })
         })
-      }
-      
-      output$model_code_ui <- renderUI({
-        code_list <- lapply(names(model_code), function(model) {
-          code <- model_code[[model]]
-          model_display_name <- model_names[model]
-          tagList(h3(model_display_name), verbatimTextOutput(paste0("code_", model)))
-        })
-        do.call(tagList, code_list)
       })
       
-      for (model in names(model_code)) {
+      # Render model code
+      output$model_code_ui <- renderUI({
+        lapply(names(model_code), function(model) {
+          tagList(
+            h3(model_names[model]),
+            verbatimTextOutput(paste0("code_", model))
+          )
+        }) %>% do.call(tagList, .)
+      })
+      
+      lapply(names(model_code), function(model) {
         local({
           model_name <- model
           code <- model_code[[model_name]]
@@ -143,21 +134,16 @@ server <- function(input, output, session) {
             code
           })
         })
-      }
+      })
+      
+      # Dynamically manage tabs
+      tab_titles <- setNames(c("RF Results", "KNN Results", "GBM Results", "SVM Results"),
+                             c("create_rf", "create_knn", "create_gbm", "create_svm"))
+      
+      tabs_to_add <- tab_titles[selected_models]
+      lapply(tabs_to_add, function(title) {
+        appendTab("main_navset", nav_panel(title))
+      })
     })
-    
-    # Generate and render model-specific plots
-    if ("create_rf" %in% selected_models) {
-      appendTab("main_navset", nav_panel("RF Results"))
-    }
-    if ("create_knn" %in% selected_models) {
-      appendTab("main_navset", nav_panel("KNN Results"))
-    }
-    if ("create_gbm" %in% selected_models) {
-      appendTab("main_navset", nav_panel("GBM Results"))
-    }
-    if ("create_svm" %in% selected_models) {
-      appendTab("main_navset", nav_panel("SVM Results", ))
-    }
   })
 }
