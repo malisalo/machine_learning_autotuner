@@ -68,10 +68,10 @@ ui <- page_sidebar(
     div(class = "resize-handle")
   ),
   navset_card_underline(
+    id = "main_navset",
     nav_panel("Dataset", tableOutput("data_preview")),
     nav_panel("Model Results",uiOutput("model_results_ui")),
-    nav_panel("Model Code", uiOutput("model_code_ui")),
-    nav_panel("Feature Importance")
+    nav_panel("Model Code", uiOutput("model_code_ui"))
   ),
   tags$head(tags$style(
     HTML(

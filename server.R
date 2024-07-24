@@ -133,5 +133,19 @@ server <- function(input, output, session) {
         })
       }
     })
+    
+    # Generate and render model-specific plots
+    if ("create_rf" %in% selected_models) {
+      appendTab("main_navset", nav_panel("RF Results"))
+    }
+    if ("create_knn" %in% selected_models) {
+      appendTab("main_navset", nav_panel("KNN Results"))
+    }
+    if ("create_gbm" %in% selected_models) {
+      appendTab("main_navset", nav_panel("GBM Results"))
+    }
+    if ("create_svm" %in% selected_models) {
+      appendTab("main_navset", nav_panel("SVM Results", ))
+    }
   })
 }
