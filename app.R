@@ -13,6 +13,8 @@ library(corrplot)
 library(reshape2)
 library(shinycssloaders)
 library(shinyjs)
+library(pROC)
+library(class)
 
 # Source the models file
 source("models.R")
@@ -205,6 +207,8 @@ server <- function(input, output, session) {
     # Show spinner by resetting UI elements
     output$model_results_ui <- renderUI({})
     output$corr_plot <- renderPlot({})
+    
+    # Remove existing tabs
     removeTab("main_navset", "RF Results")
     removeTab("main_navset", "KNN Results")
     removeTab("main_navset", "SVM Results")
@@ -269,10 +273,13 @@ server <- function(input, output, session) {
     
     if ("create_knn" %in% selected_models) {
       knn_result <- model_results[["create_knn"]]
+      output$knn_k_value_selection_plot <- renderPlot({
+        plot_knn_k_value_selection(df, numerical_vars, predicting_var)
+      })
       output$knn_conf_matrix_plot <- renderPlot({
         plot_confusion_matrix(knn_result$confusion_matrix)
       })
-      appendTab("main_navset", nav_panel("KNN Results", withSpinner(plotOutput("knn_conf_matrix_plot"))))
+      appendTab("main_navset", nav_panel("KNN Results", withSpinner(plotOutput("knn_conf_matrix_plot")), withSpinner(plotOutput("knn_k_value_selection_plot"))))
     }
     
     if ("create_svm" %in% selected_models) {

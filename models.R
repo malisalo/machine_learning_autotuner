@@ -92,8 +92,8 @@ create_knn <- function(data, numerical_vars, categorical_vars, predicting_var, t
   test_x <- test_data[, numerical_vars]
   test_y <- test_data[[predicting_var]]
   
-  # Train the KNN model
-  knn_pred <- knn(train = train_x, test = test_x, cl = train_y, k = 5)
+  # Train the KNN model with k = 5 (adjusted to be odd)
+  knn_pred <- knn(train = train_x, test = test_x, cl = train_y, k = 5, prob = TRUE)
   cm_knn <- confusionMatrix(knn_pred, test_y)
   
   result <- list(
@@ -126,8 +126,8 @@ create_svm <- function(data, numerical_vars, categorical_vars, predicting_var, t
   test_data[numerical_vars] <- scale(test_data[numerical_vars])
   
   # Train the SVM model
-  model_svm <- svm(as.formula(paste(predicting_var, "~ .")), data = train_data)
-  predictions <- predict(model_svm, test_data)
+  model_svm <- svm(as.formula(paste(predicting_var, "~ .")), data = train_data, probability = TRUE)
+  predictions <- predict(model_svm, test_data, probability = TRUE)
   predictions <- factor(predictions, levels = levels(test_data[[predicting_var]]))
   cm_svm <- confusionMatrix(predictions, test_data[[predicting_var]])
   
@@ -139,7 +139,7 @@ create_svm <- function(data, numerical_vars, categorical_vars, predicting_var, t
   return(result)
 }
 
-# Gradient Boosting
+# Function to create and train Gradient Boosting model
 create_gbm <- function(data, predicting_var, training_split) {
   # Split the data into training and test sets
   set.seed(123)
