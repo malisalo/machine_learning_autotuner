@@ -114,11 +114,8 @@ ui <- page_sidebar(
     id = "main_navset",
     nav_panel("Dataset", tableOutput("data_preview")),
     nav_panel("Model Results", uiOutput("model_results_ui")),
-    # nav_panel("Make Predictions", 
-    #           fileInput("new_file", "Upload New CSV for Prediction", accept = ".csv"),
-    #           downloadButton("download_predictions", "Download Predictions")
-    # ),
-    nav_panel("Model Code", uiOutput("model_code_ui"))
+    nav_panel("Model Code", uiOutput("model_code_ui")),
+    nav_panel("Variable Importance", uiOutput("importance_plots_ui"))
   ),
   tags$head(tags$style(
     HTML(

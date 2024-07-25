@@ -29,7 +29,7 @@ server <- function(input, output, session) {
     file <- input$file$datapath
     save_path <- file.path(save_dir, input$file$name)
     file.copy(file, save_path, overwrite = TRUE)
-    read.csv(save_path, stringsAsFactors = FALSE)
+    read.csv(save_path, stringsAsFactors = FALSE)   
   })
   
   # Update UI inputs based on dataset column names
