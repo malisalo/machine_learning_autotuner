@@ -265,10 +265,13 @@ server <- function(input, output, session) {
     # Generate and render model-specific plots
     if ("create_rf" %in% selected_models) {
       rf_result <- model_results[["create_rf"]]
+      output$rf_conf_matrix_plot <- renderPlot({
+        plot_confusion_matrix(rf_result$confusion_matrix)
+      })
       output$rf_var_imp_plot <- renderPlot({
         plot_var_importance(rf_result$var_imp)
       })
-      appendTab("main_navset", nav_panel("RF Results", withSpinner(plotOutput("rf_var_imp_plot"))))
+      appendTab("main_navset", nav_panel("RF Results", withSpinner(plotOutput("rf_conf_matrix_plot")), withSpinner(plotOutput("rf_var_imp_plot"))))
     }
     
     if ("create_knn" %in% selected_models) {
@@ -279,7 +282,7 @@ server <- function(input, output, session) {
       output$knn_conf_matrix_plot <- renderPlot({
         plot_confusion_matrix(knn_result$confusion_matrix)
       })
-      appendTab("main_navset", nav_panel("KNN Results", withSpinner(plotOutput("knn_conf_matrix_plot")), withSpinner(plotOutput("knn_k_value_selection_plot"))))
+      appendTab("main_navset", nav_panel("KNN Results",withSpinner(plotOutput("knn_conf_matrix_plot")),withSpinner(plotOutput("knn_k_value_selection_plot"))))
     }
     
     if ("create_svm" %in% selected_models) {
@@ -287,7 +290,16 @@ server <- function(input, output, session) {
       output$svm_conf_matrix_plot <- renderPlot({
         plot_confusion_matrix(svm_result$confusion_matrix)
       })
-      appendTab("main_navset", nav_panel("SVM Results", withSpinner(plotOutput("svm_conf_matrix_plot"))))
+      output$svm_support_vectors_plot <- renderPlot({
+        plot_support_vectors(svm_result$model, imputed_data, numerical_vars, predicting_var)
+      })
+      output$svm_learning_curve_plot <- renderPlot({
+        plot_learning_curve(svm_result$model, imputed_data, numerical_vars, predicting_var)
+      })
+      output$svm_precision_recall_plot <- renderPlot({
+        plot_precision_recall_curve(svm_result$model, imputed_data, predicting_var)
+      })
+      appendTab("main_navset", nav_panel("SVM Results", withSpinner(plotOutput("svm_conf_matrix_plot")), withSpinner(plotOutput("svm_support_vectors_plot")), withSpinner(plotOutput("svm_learning_curve_plot"))))
     }
   })
 }

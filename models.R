@@ -9,6 +9,7 @@ library(corrplot)
 library(reshape2)
 library(tidyverse)
 library(doParallel)
+library(parallel)  # Ensure parallel library is loaded
 
 # Function to create and train Random Forest model
 create_rf <- function(data, numerical_vars, categorical_vars, predicting_var, training_split) {
@@ -92,13 +93,14 @@ create_knn <- function(data, numerical_vars, categorical_vars, predicting_var, t
   test_x <- test_data[, numerical_vars]
   test_y <- test_data[[predicting_var]]
   
-  # Train the KNN model with k = 5 (adjusted to be odd)
-  knn_pred <- knn(train = train_x, test = test_x, cl = train_y, k = 5, prob = TRUE)
+  # Train the KNN model with k = 5 and use.all = FALSE
+  knn_pred <- knn(train = train_x, test = test_x, cl = train_y, k = 5, prob = TRUE, use.all = FALSE)
   cm_knn <- confusionMatrix(knn_pred, test_y)
   
   result <- list(
     accuracy = round(cm_knn$overall['Accuracy'] * 100, 2),
-    confusion_matrix = cm_knn
+    confusion_matrix = cm_knn,
+    model = knn_pred
   )
   
   return(result)
@@ -133,7 +135,8 @@ create_svm <- function(data, numerical_vars, categorical_vars, predicting_var, t
   
   result <- list(
     accuracy = round(cm_svm$overall['Accuracy'] * 100, 2),
-    confusion_matrix = cm_svm
+    confusion_matrix = cm_svm,
+    model = model_svm
   )
   
   return(result)
@@ -226,3 +229,102 @@ plot_confusion_matrix <- function(conf_matrix) {
     labs(title = "Confusion Matrix Heatmap", x = "Predicted", y = "Actual")
   return(cm_plot)
 }
+
+# Function to plot K-Value Selection for KNN
+plot_knn_k_value_selection <- function(data, numerical_vars, predicting_var) {
+  set.seed(123)
+  
+  # Remove rows with missing values
+  data <- na.omit(data)
+  
+  # Split data
+  train_index <- createDataPartition(data[[predicting_var]], p = 0.8, list = FALSE)
+  train_data <- data[train_index, ]
+  test_data <- data[-train_index, ]
+  
+  train_x <- train_data[, numerical_vars]
+  train_y <- train_data[[predicting_var]]
+  test_x <- test_data[, numerical_vars]
+  test_y <- test_data[[predicting_var]]
+  
+  # Try different k values, ensuring k is odd to minimize ties
+  k_values <- seq(1, 19, by = 2)
+  accuracy <- sapply(k_values, function(k) {
+    knn_pred <- knn(train = train_x, test = test_x, cl = train_y, k = k, prob = TRUE)
+    sum(knn_pred == test_y) / length(test_y)
+  })
+  
+  # Plot accuracy vs. k
+  plot(k_values, accuracy, type = "b", col = "blue", pch = 19, xlab = "K Value", ylab = "Accuracy", main = "K-Value Selection")
+  grid()
+}
+
+# Function to plot Support Vectors for SVM
+plot_support_vectors <- function(model, data, numerical_vars, predicting_var) {
+  support_vectors <- data[model$index, ]
+  
+  # Plot only for 2D case (if there are more numerical variables, select two for plotting)
+  if (length(numerical_vars) > 2) {
+    x_var <- numerical_vars[1]
+    y_var <- numerical_vars[2]
+  } else {
+    x_var <- numerical_vars[1]
+    y_var <- numerical_vars[2]
+  }
+  
+  sv_plot <- ggplot(data, aes_string(x = x_var, y = y_var, color = predicting_var)) +
+    geom_point() +
+    geom_point(data = support_vectors, aes_string(x = x_var, y = y_var), shape = 1, size = 3, color = "red") +
+    theme_minimal() +
+    ggtitle("Support Vectors")
+  
+  return(sv_plot)
+}
+
+# Function to plot Learning Curve for SVM
+plot_learning_curve <- function(model, data, numerical_vars, predicting_var) {
+  set.seed(123)
+  
+  # Define training sizes
+  training_sizes <- seq(0.1, 0.9, by = 0.1)
+  
+  train_accuracies <- c()
+  test_accuracies <- c()
+  
+  for (size in training_sizes) {
+    train_index <- createDataPartition(data[[predicting_var]], p = size, list = FALSE)
+    train_data <- data[train_index, ]
+    test_data <- data[-train_index, ]
+    
+    # Train the SVM model
+    model_svm <- svm(as.formula(paste(predicting_var, "~ .")), data = train_data, probability = TRUE)
+    
+    # Training accuracy
+    train_predictions <- predict(model_svm, train_data)
+    train_cm <- confusionMatrix(train_predictions, train_data[[predicting_var]])
+    train_accuracies <- c(train_accuracies, train_cm$overall['Accuracy'])
+    
+    # Test accuracy
+    test_predictions <- predict(model_svm, test_data)
+    test_cm <- confusionMatrix(test_predictions, test_data[[predicting_var]])
+    test_accuracies <- c(test_accuracies, test_cm$overall['Accuracy'])
+  }
+  
+  # Plot learning curve
+  learning_curve_plot <- data.frame(
+    Training_Size = training_sizes * 100,
+    Train_Accuracy = train_accuracies,
+    Test_Accuracy = test_accuracies
+  )
+  
+  p <- ggplot(learning_curve_plot, aes(x = Training_Size)) +
+    geom_line(aes(y = Train_Accuracy, color = "Train Accuracy")) +
+    geom_line(aes(y = Test_Accuracy, color = "Test Accuracy")) +
+    labs(title = "Learning Curve", x = "Training Size (%)", y = "Accuracy") +
+    theme_minimal()
+  
+  return(p)
+}
+
+
+
