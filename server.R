@@ -59,7 +59,7 @@ server <- function(input, output, session) {
   }
   
   observeEvent(input$run_model, {
-    withProgress(message = 'Running models...', value = 0, {
+    withProgress(message = 'Training models...', value = 0, {
       df <- dataset()
       predicting_var <- input$Predictive
       imputation_technique <- input$Imputation
@@ -72,10 +72,17 @@ server <- function(input, output, session) {
         "create_svm" = input$models_amount_svm
       )
       
+      # Filter dataset to keep only selected features
+      selected_features <- input$Features
+      if (length(selected_features) > 0) {
+        df <- df %>%
+          select(all_of(c(selected_features, predicting_var)))
+      }
+      
       imputed_data <- perform_imputation(imputation_technique, df)
       
       results <- lapply(selected_models, function(model) {
-        incProgress(1 / length(selected_models), detail = paste("Processing", model))
+        incProgress(1 / length(selected_models), detail = paste(model_names[[model]], "is currently being trained"))
         process_model(model, imputed_data, predicting_var, training_split, models_amount[[model]])
       })
       
@@ -131,7 +138,7 @@ server <- function(input, output, session) {
           model_name <- model
           code <- model_code[[model_name]]
           output[[paste0("code_", model_name)]] <- renderPrint({
-            code
+            cat(code)
           })
         })
       })
