@@ -281,49 +281,21 @@ plot_support_vectors <- function(model, data, numerical_vars, predicting_var) {
   return(sv_plot)
 }
 
-# Function to plot Learning Curve for SVM
-plot_learning_curve <- function(model, data, numerical_vars, predicting_var) {
-  set.seed(123)
+plot_support_vectors_pca <- function(model, data, numerical_vars, predicting_var) {
+  # Perform PCA
+  pca <- prcomp(data[, numerical_vars], center = TRUE, scale. = TRUE)
+  pca_data <- as.data.frame(pca$x)
+  pca_data[[predicting_var]] <- data[[predicting_var]]
+  support_vectors <- pca_data[model$index, ]
   
-  # Define training sizes
-  training_sizes <- seq(0.1, 0.9, by = 0.1)
+  # Plot the first two principal components
+  sv_plot <- ggplot(pca_data, aes(x = PC1, y = PC2, color = data[[predicting_var]])) +
+    geom_point() +
+    geom_point(data = support_vectors, aes(x = PC1, y = PC2), shape = 1, size = 3, color = "red") +
+    theme_minimal() +
+    ggtitle("Support Vectors (PCA)")
   
-  train_accuracies <- c()
-  test_accuracies <- c()
-  
-  for (size in training_sizes) {
-    train_index <- createDataPartition(data[[predicting_var]], p = size, list = FALSE)
-    train_data <- data[train_index, ]
-    test_data <- data[-train_index, ]
-    
-    # Train the SVM model
-    model_svm <- svm(as.formula(paste(predicting_var, "~ .")), data = train_data, probability = TRUE)
-    
-    # Training accuracy
-    train_predictions <- predict(model_svm, train_data)
-    train_cm <- confusionMatrix(train_predictions, train_data[[predicting_var]])
-    train_accuracies <- c(train_accuracies, train_cm$overall['Accuracy'])
-    
-    # Test accuracy
-    test_predictions <- predict(model_svm, test_data)
-    test_cm <- confusionMatrix(test_predictions, test_data[[predicting_var]])
-    test_accuracies <- c(test_accuracies, test_cm$overall['Accuracy'])
-  }
-  
-  # Plot learning curve
-  learning_curve_plot <- data.frame(
-    Training_Size = training_sizes * 100,
-    Train_Accuracy = train_accuracies,
-    Test_Accuracy = test_accuracies
-  )
-  
-  p <- ggplot(learning_curve_plot, aes(x = Training_Size)) +
-    geom_line(aes(y = Train_Accuracy, color = "Train Accuracy")) +
-    geom_line(aes(y = Test_Accuracy, color = "Test Accuracy")) +
-    labs(title = "Learning Curve", x = "Training Size (%)", y = "Accuracy") +
-    theme_minimal()
-  
-  return(p)
+  return(sv_plot)
 }
 
 

@@ -293,10 +293,10 @@ server <- function(input, output, session) {
       output$svm_support_vectors_plot <- renderPlot({
         plot_support_vectors(svm_result$model, imputed_data, numerical_vars, predicting_var)
       })
-      output$svm_learning_curve_plot <- renderPlot({
-        plot_learning_curve(svm_result$model, imputed_data, numerical_vars, predicting_var)
+      output$svm_support_vectors_plot_pca <- renderPlot({
+        plot_support_vectors_pca(svm_result$model, imputed_data, numerical_vars, predicting_var)
       })
-      appendTab("main_navset", nav_panel("SVM Results", withSpinner(plotOutput("svm_conf_matrix_plot")), withSpinner(plotOutput("svm_support_vectors_plot")), withSpinner(plotOutput("svm_learning_curve_plot"))))
+      appendTab("main_navset", nav_panel("SVM Results", withSpinner(plotOutput("svm_conf_matrix_plot")), withSpinner(plotOutput("svm_support_vectors_plot_pca")), withSpinner(plotOutput("svm_support_vectors_plot"))))
     }
   })
 }
