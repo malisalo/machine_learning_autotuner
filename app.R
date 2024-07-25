@@ -296,9 +296,6 @@ server <- function(input, output, session) {
       output$svm_learning_curve_plot <- renderPlot({
         plot_learning_curve(svm_result$model, imputed_data, numerical_vars, predicting_var)
       })
-      output$svm_precision_recall_plot <- renderPlot({
-        plot_precision_recall_curve(svm_result$model, imputed_data, predicting_var)
-      })
       appendTab("main_navset", nav_panel("SVM Results", withSpinner(plotOutput("svm_conf_matrix_plot")), withSpinner(plotOutput("svm_support_vectors_plot")), withSpinner(plotOutput("svm_learning_curve_plot"))))
     }
   })
