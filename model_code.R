@@ -35,9 +35,7 @@ print(conf_matrix)
   return(svm_code)
 }
 
-create_code_rf <- function(predicting_var,
-                           training_split,
-                           best_params) {
+create_code_rf <- function(predicting_var, training_split, best_params) {
   rf_code <- glue::glue(
     "
 # Load necessary libraries
@@ -56,7 +54,7 @@ train_data <- data[index, ]
 test_data <- data[-index, ]
 
 # Train the Random Forest model
-rf_model <- randomForest({predicting_var} ~ ., data = train_data, mtry = {best_params$mtry}, ntree = {best_params$ntree}, nodesize = {best_params$nodesize}, maxnodes = {best_params$maxnodes})
+rf_model <- randomForest({predicting_var} ~ ., data = train_data, mtry = {best_params$mtry})
 
 # Predict on the test set
 predictions <- predict(rf_model, newdata = test_data)
