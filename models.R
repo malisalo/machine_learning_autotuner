@@ -45,68 +45,45 @@ create_gbm <- function(data, predicting_var, training_split, models_amount) {
 
 # Random Forest
 create_rf <- function(data, predicting_var, training_split, models_amount) {
-  # Split the data
   set.seed(123)
-  trainIndex <- createDataPartition(data[[predicting_var]],
-                                    p = training_split,
-                                    list = FALSE,
+  
+  # Split the data into training and test sets
+  trainIndex <- createDataPartition(data[[predicting_var]], 
+                                    p = training_split, 
+                                    list = FALSE, 
                                     times = 1)
-  train_data <- data[trainIndex, ]
-  test_data <- data[-trainIndex, ]
+  train <- data[trainIndex, ]
+  test <- data[-trainIndex, ]
   
-  # Define the task
-  task <- makeClassifTask(data = train_data, target = predicting_var)
+  # Train control with cross-validation
+  train_control <- trainControl(method = "cv", number = 5, search = "random")
   
-  # Define the learner
-  rf_learner <- makeLearner("classif.randomForest", predict.type = "response")
-  
-  # Define parameter space
-  param_set <- makeParamSet(
-    makeDiscreteParam("mtry", values = c(4)),
-    makeDiscreteParam("ntree", values = c(755)),
-    makeDiscreteParam("nodesize", values = c(10)),
-    makeDiscreteParam("maxnodes", values = c(30))
+  # Train the Random Forest model with hyperparameter tuning
+  rf_model <- train(
+    as.formula(paste(predicting_var, "~ .")),
+    data = train,
+    method = "rf",
+    metric = "Accuracy",
+    tuneLength = models_amount,
+    trControl = train_control
   )
-  
-  # Define resampling strategy
-  resampling <- makeResampleDesc("CV", iters = 5)
-  
-  # Define tuning method
-  tuner <- makeTuneControlGrid()
-  
-  # Tune the parameters
-  tuned_rf <- tuneParams(
-    learner = rf_learner,
-    task = task,
-    resampling = resampling,
-    par.set = param_set,
-    control = tuner,
-    measures = list(acc = acc)
-  )
-  
-  # Extract the best parameters
-  best_params <- tuned_rf$x
   
   # Print the best parameters
-  print(best_params)
+  print(rf_model$bestTune)
   
-  # Train the model with the best parameters
-  rf_model <- setHyperPars(rf_learner, par.vals = best_params)
-  rf_model <- train(rf_model, task)
+  # Use the best model to make predictions on the test set
+  predictions_rf <- predict(rf_model, newdata = test)
   
-  # Predict on the test set
-  test_task <- makeClassifTask(data = test_data, target = predicting_var)
-  predictions <- predict(rf_model, newdata = test_task)
+  # Calculate confusion matrix
+  cm_rf <- confusionMatrix(predictions_rf, test[[predicting_var]])
   
-  # Evaluate performance
-  cm_rf <- confusionMatrix(predictions$truth, predictions$predict)
-  
-  # Return the results
+  # Return confusion matrix and overall accuracy
   list(
     accuracy = round(cm_rf$overall['Accuracy'] * 100, 2),
     confusion_matrix = cm_rf$table,
-    best_params = best_params
+    best_params = rf_model$bestTune
   )
+  
 }
 
 # K Nearest Neighbors
@@ -164,9 +141,6 @@ create_svm <- function(data, predicting_var, training_split, models_amount) {
   
   # Define cross-validation method
   train_control <- trainControl(method = "cv", number = 5)
-  
-  # Define hyperparameter grid for tuning
-  svm_grid <- expand.grid(C = 2 ^ (-5:2), sigma = 2 ^ (-15:3)) # Radial basis function kernel parameters
   
   # Train the SVM model with hyperparameter tuning
   svm_model <- train(
