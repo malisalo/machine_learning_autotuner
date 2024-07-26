@@ -259,28 +259,6 @@ plot_knn_k_value_selection <- function(data, numerical_vars, predicting_var) {
   grid()
 }
 
-# Function to plot Support Vectors for SVM
-plot_support_vectors <- function(model, data, numerical_vars, predicting_var) {
-  support_vectors <- data[model$index, ]
-  
-  # Plot only for 2D case (if there are more numerical variables, select two for plotting)
-  if (length(numerical_vars) > 2) {
-    x_var <- numerical_vars[1]
-    y_var <- numerical_vars[2]
-  } else {
-    x_var <- numerical_vars[1]
-    y_var <- numerical_vars[2]
-  }
-  
-  sv_plot <- ggplot(data, aes_string(x = x_var, y = y_var, color = predicting_var)) +
-    geom_point() +
-    geom_point(data = support_vectors, aes_string(x = x_var, y = y_var), shape = 1, size = 3, color = "red") +
-    theme_minimal() +
-    ggtitle("Support Vectors")
-  
-  return(sv_plot)
-}
-
 plot_support_vectors_pca <- function(model, data, numerical_vars, predicting_var) {
   # Perform PCA
   pca <- prcomp(data[, numerical_vars], center = TRUE, scale. = TRUE)
@@ -292,7 +270,7 @@ plot_support_vectors_pca <- function(model, data, numerical_vars, predicting_var
   sv_plot <- ggplot(pca_data, aes(x = PC1, y = PC2, color = data[[predicting_var]])) +
     geom_point() +
     geom_point(data = support_vectors, aes(x = PC1, y = PC2), shape = 1, size = 3, color = "red") +
-    theme_minimal() +
+    theme_classic() +
     ggtitle("Support Vectors (PCA)")
   
   return(sv_plot)

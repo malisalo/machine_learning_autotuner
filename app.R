@@ -290,13 +290,10 @@ server <- function(input, output, session) {
       output$svm_conf_matrix_plot <- renderPlot({
         plot_confusion_matrix(svm_result$confusion_matrix)
       })
-      output$svm_support_vectors_plot <- renderPlot({
-        plot_support_vectors(svm_result$model, imputed_data, numerical_vars, predicting_var)
-      })
       output$svm_support_vectors_plot_pca <- renderPlot({
         plot_support_vectors_pca(svm_result$model, imputed_data, numerical_vars, predicting_var)
       })
-      appendTab("main_navset", nav_panel("SVM Results", withSpinner(plotOutput("svm_conf_matrix_plot")), withSpinner(plotOutput("svm_support_vectors_plot_pca")), withSpinner(plotOutput("svm_support_vectors_plot"))))
+      appendTab("main_navset", nav_panel("SVM Results", withSpinner(plotOutput("svm_conf_matrix_plot")), withSpinner(plotOutput("svm_support_vectors_plot_pca"))))
     }
   })
 }
