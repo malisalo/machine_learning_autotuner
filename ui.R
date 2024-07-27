@@ -3,6 +3,7 @@ library(bslib)
 library(shinycssloaders)
 
 # Define UI ----
+# Update the UI to include the bar plot
 ui <- page_sidebar(
   title = "Maize Data ML Dashboard",
   sidebar = sidebar(
@@ -114,8 +115,9 @@ ui <- page_sidebar(
     id = "main_navset",
     nav_panel("Dataset", tableOutput("data_preview")),
     nav_panel("Model Results", uiOutput("model_results_ui")),
+    nav_panel("Model Graph", plotOutput("model_accuracy_plot", width = "100%")),
     nav_panel("Model Code", uiOutput("model_code_ui")),
-    nav_panel("Variable Importance", uiOutput("importance_plots_ui"))
+    nav_panel("Variable Importance")
   ),
   tags$head(tags$style(
     HTML(
@@ -172,3 +174,4 @@ ui <- page_sidebar(
     ),
   ))
 )
+

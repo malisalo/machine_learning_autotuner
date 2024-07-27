@@ -3,6 +3,8 @@ library(bslib)
 library(dplyr)
 library(DT)
 library(shinycssloaders)
+library(ggplot2)
+library(gridExtra)
 
 # Source the models and code generation files
 source("models.R")
@@ -98,6 +100,7 @@ server <- function(input, output, session) {
           tagList(
             h3(model_names[model]),
             h4(paste("Accuracy:", result$accuracy, "%")),
+            h4(paste("F1 Score:", result$f1_score)),
             DTOutput(paste0("confusion_matrix_", model)),
             hr()
           )
@@ -143,14 +146,54 @@ server <- function(input, output, session) {
         })
       })
       
-      # Dynamically manage tabs
-      tab_titles <- setNames(c("RF Results", "KNN Results", "GBM Results", "SVM Results"),
-                             c("create_rf", "create_knn", "create_gbm", "create_svm"))
-      
-      tabs_to_add <- tab_titles[selected_models]
-      lapply(tabs_to_add, function(title) {
-        appendTab("main_navset", nav_panel(title))
-      })
+      # Render the bar graph of best parameter accuracies
+      output$model_accuracy_plot <- renderPlot({
+        accuracies <- sapply(selected_models, function(model) {
+          result <- model_results[[model]]
+          result$accuracy
+        })
+        
+        f1_scores <- sapply(selected_models, function(model) {
+          result <- model_results[[model]]
+          result$f1_score
+        })
+        
+        model_labels <- model_names[selected_models]
+        
+        # Create data frames
+        accuracy_df <- data.frame(
+          Model = factor(model_labels, levels = model_labels),
+          Accuracy = accuracies
+        )
+        
+        f1_score_df <- data.frame(
+          Model = factor(model_labels, levels = model_labels),
+          F1_Score = f1_scores
+        )
+        
+        # Plot accuracies
+        p1 <- ggplot(accuracy_df, aes(x = Model, y = Accuracy)) +
+          geom_bar(stat = "identity", fill = "lightblue") +
+          ggtitle("Best Parameter Accuracies") +
+          xlab("Models") +
+          ylab("Accuracy (%)") +
+          ylim(0, 100) +
+          theme_classic() +
+          theme(plot.margin = unit(c(1, 1, 1, 1), "cm"), plot.width = unit(5, "cm"))
+        
+        # Plot F1 scores
+        p2 <- ggplot(f1_score_df, aes(x = Model, y = F1_Score)) +
+          geom_bar(stat = "identity", fill = "lightpink") +
+          ggtitle("F1 Scores") +
+          xlab("Models") +
+          ylab("F1 Score") +
+          ylim(0, 1) +
+          theme_classic() +
+          theme(plot.margin = unit(c(1, 1, 1, 1), "cm"), plot.width = unit(5, "cm"))
+        
+        # Combine the two plots
+        gridExtra::grid.arrange(p1, p2, ncol = 1)
+      }, width = 500)  # Adjust the width as needed
     })
   })
 }
