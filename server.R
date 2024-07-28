@@ -78,7 +78,8 @@ server <- function(input, output, session) {
     list(
       result = result,
       params = result$best_params,
-      code = code_gen_func(predicting_var, train_split, result$best_params)
+      code = code_gen_func(predicting_var, train_split, result$best_params),
+      has_variable_importance = "variable_importance" %in% names(result)
     )
   }
   
@@ -121,6 +122,7 @@ server <- function(input, output, session) {
       model_results <- lapply(results, `[[`, "result")
       model_params <- lapply(results, `[[`, "params")
       model_code <- lapply(results, `[[`, "code")
+      has_variable_importance <- lapply(results, `[[`, "has_variable_importance")
       
       # Dynamically add tabs for each model
       lapply(names(model_results), function(model) {
@@ -134,8 +136,15 @@ server <- function(input, output, session) {
                 h3(model_names[model]),
                 h4(paste("Accuracy:", model_results[[model]]$accuracy, "%")),
                 plotlyOutput(paste0("confusion_matrix_", model), height = "400px"),
-                plotOutput(paste0("var_importance_", model)),
-                h3("Generated Model Code"),
+                hr(),
+                h4("Variable Importance Chart"),
+                if (has_variable_importance[[model]]) {
+                  plotOutput(paste0("var_importance_", model))
+                } else {
+                  tags$p("Variable importance not available for this model.")
+                },
+                hr(),
+                h4("Generated Model Code"),
                 verbatimTextOutput(paste0("code_", model))
             )
           ),
@@ -162,24 +171,26 @@ server <- function(input, output, session) {
           })
         })
         
-        # Render variable importance
-        local({
-          model_name <- model
-          result <- model_results[[model_name]]
-          output[[paste0("var_importance_", model_name)]] <- renderPlot({
-            var_importance <- result$variable_importance
-            var_importance_df <- data.frame(
-              Feature = rownames(var_importance),
-              Importance = var_importance[, 1]
-            )
-            var_importance_df <- var_importance_df[order(var_importance_df$Importance, decreasing = TRUE), ]
-            ggplot(var_importance_df, aes(x = reorder(Feature, Importance), y = Importance)) +
-              geom_bar(stat = "identity", fill = "steelblue") +
-              coord_flip() +
-              theme_minimal() +
-              labs(title = paste(model_names[model_name], "Variable Importance"), x = "Features", y = "Importance")
+        # Render variable importance if available
+        if (has_variable_importance[[model]]) {
+          local({
+            model_name <- model
+            result <- model_results[[model_name]]
+            output[[paste0("var_importance_", model_name)]] <- renderPlot({
+              var_importance <- result$variable_importance
+              var_importance_df <- data.frame(
+                Feature = rownames(var_importance),
+                Importance = var_importance[, 1]
+              )
+              var_importance_df <- var_importance_df[order(var_importance_df$Importance, decreasing = TRUE), ]
+              ggplot(var_importance_df, aes(x = reorder(Feature, Importance), y = Importance)) +
+                geom_bar(stat = "identity", fill = "steelblue") +
+                coord_flip() +
+                theme_minimal() +
+                labs(title = paste(model_names[model_name], "Variable Importance"), x = "Features", y = "Importance")
+            })
           })
-        })
+        }
         
         # Render model code
         local({
@@ -219,3 +230,4 @@ server <- function(input, output, session) {
     })
   })
 }
+
