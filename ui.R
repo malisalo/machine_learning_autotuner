@@ -62,7 +62,7 @@ ui <- page_sidebar(
             "models_amount_rf",
             "# of Random Forests",
             min = 0,
-            max = 100,
+            max = 200,
             value = 50
           )
         ),
@@ -72,7 +72,7 @@ ui <- page_sidebar(
             "models_amount_knn",
             "# of K Nearest Neighbors",
             min = 0,
-            max = 250,
+            max = 200,
             value = 125
           )
         ),
@@ -82,7 +82,7 @@ ui <- page_sidebar(
             "models_amount_gbm",
             "# of Gradient Boostings",
             min = 0,
-            max = 30,
+            max = 200,
             value = 15
           )
         ),
@@ -92,7 +92,7 @@ ui <- page_sidebar(
             "models_amount_svm",
             "# of SVMs",
             min = 0,
-            max = 30,
+            max = 200,
             value = 15
           )
         )
