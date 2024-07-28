@@ -23,7 +23,7 @@ ui <- page_sidebar(
         selected = 1
       ),
       card(
-        card_header("Select Features"),
+        card_header("Select Features", checkboxInput("select_all_features", "Select All", value = FALSE)),
         checkboxGroupInput(
           inputId = "Features",
           label = NULL,
@@ -114,7 +114,7 @@ ui <- page_sidebar(
   navset_card_underline(
     id = "main_navset",
     nav_panel("Overview"),
-    nav_panel("Dataset", tableOutput("data_preview")),
+    nav_panel("Dataset", DTOutput("data_preview")),
     nav_panel("Model Graph", plotOutput("model_accuracy_plot", width = "100%"))
   ),
   tags$head(tags$style(
