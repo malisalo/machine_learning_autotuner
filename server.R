@@ -39,14 +39,35 @@ server <- function(input, output, session) {
   observe({
     req(dataset())
     cols <- names(dataset())
-    updateSelectInput(session, "Predictive", choices = cols)
-    updateCheckboxGroupInput(session, "Features", choices = cols)
+    
+    # Identify categorical columns
+    categorical_cols <- cols[sapply(dataset(), function(col) {
+      is.factor(col) || is.character(col)
+    })]
+    
+    updateSelectInput(session, "Predictive", choices = categorical_cols)
+  })
+  
+  observe({
+    req(dataset(), input$Predictive)
+    cols <- names(dataset())
+    updateCheckboxGroupInput(session, "Features", choices = setdiff(cols, input$Predictive))
+  })
+  
+  observeEvent(input$select_all_features, {
+    req(dataset())
+    cols <- names(dataset())
+    if (input$select_all_features) {
+      updateCheckboxGroupInput(session, "Features", selected = setdiff(cols, input$Predictive))
+    } else {
+      updateCheckboxGroupInput(session, "Features", selected = character(0))
+    }
   })
   
   # Output: Display a preview of the dataframe
-  output$data_preview <- renderTable({
+  output$data_preview <- renderDT({
     req(dataset())
-    head(dataset(), 10)
+    datatable(dataset(), options = list(pageLength = 10, scrollX = TRUE), rownames=FALSE)
   })
   
   # Helper function to process models
@@ -113,6 +134,7 @@ server <- function(input, output, session) {
                 h3(model_names[model]),
                 h4(paste("Accuracy:", model_results[[model]]$accuracy, "%")),
                 plotlyOutput(paste0("confusion_matrix_", model), height = "400px"),
+                plotOutput(paste0("var_importance_", model)),
                 h3("Generated Model Code"),
                 verbatimTextOutput(paste0("code_", model))
             )
@@ -137,6 +159,25 @@ server <- function(input, output, session) {
               xlab("Reference") +
               ylab("Prediction")
             ggplotly(p) %>% layout(autosize = TRUE)
+          })
+        })
+        
+        # Render variable importance
+        local({
+          model_name <- model
+          result <- model_results[[model_name]]
+          output[[paste0("var_importance_", model_name)]] <- renderPlot({
+            var_importance <- result$variable_importance
+            var_importance_df <- data.frame(
+              Feature = rownames(var_importance),
+              Importance = var_importance[, 1]
+            )
+            var_importance_df <- var_importance_df[order(var_importance_df$Importance, decreasing = TRUE), ]
+            ggplot(var_importance_df, aes(x = reorder(Feature, Importance), y = Importance)) +
+              geom_bar(stat = "identity", fill = "steelblue") +
+              coord_flip() +
+              theme_minimal() +
+              labs(title = paste(model_names[model_name], "Variable Importance"), x = "Features", y = "Importance")
           })
         })
         

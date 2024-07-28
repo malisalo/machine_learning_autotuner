@@ -3,6 +3,7 @@ library(e1071)
 library(randomForest)
 library(gbm)
 library(caret)
+library(DALEX)
 
 # Gradient Boosting
 create_gbm <- function(data, predicting_var, training_split, models_amount) {
@@ -31,12 +32,14 @@ create_gbm <- function(data, predicting_var, training_split, models_amount) {
   best_params <- gbm_model$bestTune
   predictions_gbm <- predict(gbm_model, newdata = test)
   cm_gbm <- confusionMatrix(predictions_gbm, test[[predicting_var]])
-  f1_score <- calculate_f1_score(cm_gbm)
+  
+  variable_importance <- varImp(gbm_model)$importance
   
   list(
     accuracy = round(cm_gbm$overall['Accuracy'] * 100, 2),
     confusion_matrix = cm_gbm$table,
-    best_params = best_params
+    best_params = best_params,
+    variable_importance = variable_importance
   )
 }
 
@@ -66,12 +69,14 @@ create_rf <- function(data, predicting_var, training_split, models_amount) {
   
   predictions_rf <- predict(rf_model, newdata = test)
   cm_rf <- confusionMatrix(predictions_rf, test[[predicting_var]])
-  f1_score <- calculate_f1_score(cm_rf)
+  
+  variable_importance <- varImp(rf_model)$importance
   
   list(
     accuracy = round(cm_rf$overall['Accuracy'] * 100, 2),
     confusion_matrix = cm_rf$table,
-    best_params = rf_model$bestTune
+    best_params = rf_model$bestTune,
+    variable_importance = variable_importance
   )
 }
 
@@ -100,7 +105,6 @@ create_knn <- function(data, predicting_var, training_split, models_amount) {
   
   predictions_knn <- predict(knn_tuned, newdata = test)
   cm_knn <- confusionMatrix(predictions_knn, test[[predicting_var]])
-  f1_score <- calculate_f1_score(cm_knn)
   
   list(
     accuracy = round(cm_knn$overall['Accuracy'] * 100, 2),
