@@ -5,6 +5,7 @@ library(DT)
 library(shinycssloaders)
 library(ggplot2)
 library(gridExtra)
+library(plotly)
 
 # Source the models and code generation files
 source("models.R")
@@ -62,6 +63,13 @@ server <- function(input, output, session) {
   
   observeEvent(input$run_model, {
     withProgress(message = 'Training models...', value = 0, {
+      # Remove existing model tabs
+      existing_tabs <- names(model_names)
+      lapply(existing_tabs, function(model) {
+        tab_id <- paste0("tab_", model)
+        removeTab(inputId = "main_navset", target = tab_id)
+      })
+      
       df <- dataset()
       predicting_var <- input$Predictive
       imputation_technique <- input$Imputation
@@ -93,50 +101,46 @@ server <- function(input, output, session) {
       model_params <- lapply(results, `[[`, "params")
       model_code <- lapply(results, `[[`, "code")
       
-      # Render model results
-      output$model_results_ui <- renderUI({
-        lapply(names(model_results), function(model) {
-          result <- model_results[[model]]
-          tagList(
-            h3(model_names[model]),
-            h4(paste("Accuracy:", result$accuracy, "%")),
-            h4(paste("F1 Score:", result$f1_score)),
-            DTOutput(paste0("confusion_matrix_", model)),
-            hr()
-          )
-        }) %>% do.call(tagList, .)
-      })
-      
-      # Render confusion matrices
+      # Dynamically add tabs for each model
       lapply(names(model_results), function(model) {
+        tab_id <- paste0("tab_", model)
+        insertTab(
+          inputId = "main_navset",
+          tabPanel(
+            title = model_names[model],
+            value = tab_id,
+            div(class = "model-results",
+                h3(model_names[model]),
+                h4(paste("Accuracy:", model_results[[model]]$accuracy, "%")),
+                plotlyOutput(paste0("confusion_matrix_", model), height = "400px"),
+                h3("Generated Model Code"),
+                verbatimTextOutput(paste0("code_", model))
+            )
+          ),
+          target = "Model Graph", # Insert the new tab before "Model Graph" tab
+          position = "before"
+        )
+        
+        # Render confusion matrices as heatmaps using plotly
         local({
           model_name <- model
           result <- model_results[[model_name]]
-          output[[paste0("confusion_matrix_", model_name)]] <- renderDT({
-            datatable(
-              result$confusion_matrix,
-              options = list(
-                pageLength = 5,
-                autoWidth = TRUE,
-                searching = FALSE
-              ),
-              rownames = FALSE
-            )
+          output[[paste0("confusion_matrix_", model_name)]] <- renderPlotly({
+            cm <- as.data.frame(result$confusion_matrix)
+            colnames(cm) <- c("Prediction", "Reference", "Frequency")
+            p <- ggplot(cm, aes(x = Reference, y = Prediction)) +
+              geom_tile(aes(fill = Frequency), color = "white") +
+              scale_fill_gradient(low = "white", high = "deepskyblue3") +
+              geom_text(aes(label = Frequency), vjust = 1) +
+              theme_minimal() +
+              ggtitle(paste(model_names[model_name], "Confusion Matrix")) +
+              xlab("Reference") +
+              ylab("Prediction")
+            ggplotly(p) %>% layout(autosize = TRUE)
           })
         })
-      })
-      
-      # Render model code
-      output$model_code_ui <- renderUI({
-        lapply(names(model_code), function(model) {
-          tagList(
-            h3(model_names[model]),
-            verbatimTextOutput(paste0("code_", model))
-          )
-        }) %>% do.call(tagList, .)
-      })
-      
-      lapply(names(model_code), function(model) {
+        
+        # Render model code
         local({
           model_name <- model
           code <- model_code[[model_name]]
@@ -153,47 +157,24 @@ server <- function(input, output, session) {
           result$accuracy
         })
         
-        f1_scores <- sapply(selected_models, function(model) {
-          result <- model_results[[model]]
-          result$f1_score
-        })
-        
         model_labels <- model_names[selected_models]
         
-        # Create data frames
+        # Create data frame
         accuracy_df <- data.frame(
           Model = factor(model_labels, levels = model_labels),
           Accuracy = accuracies
         )
         
-        f1_score_df <- data.frame(
-          Model = factor(model_labels, levels = model_labels),
-          F1_Score = f1_scores
-        )
-        
         # Plot accuracies
-        p1 <- ggplot(accuracy_df, aes(x = Model, y = Accuracy)) +
+        ggplot(accuracy_df, aes(x = Model, y = Accuracy)) +
           geom_bar(stat = "identity", fill = "lightblue") +
           ggtitle("Best Parameter Accuracies") +
           xlab("Models") +
           ylab("Accuracy (%)") +
           ylim(0, 100) +
           theme_classic() +
-          theme(plot.margin = unit(c(1, 1, 1, 1), "cm"), plot.width = unit(5, "cm"))
-        
-        # Plot F1 scores
-        p2 <- ggplot(f1_score_df, aes(x = Model, y = F1_Score)) +
-          geom_bar(stat = "identity", fill = "lightpink") +
-          ggtitle("F1 Scores") +
-          xlab("Models") +
-          ylab("F1 Score") +
-          ylim(0, 1) +
-          theme_classic() +
-          theme(plot.margin = unit(c(1, 1, 1, 1), "cm"), plot.width = unit(5, "cm"))
-        
-        # Combine the two plots
-        gridExtra::grid.arrange(p1, p2, ncol = 1)
-      }, width = 500)  # Adjust the width as needed
+          theme(plot.margin = unit(c(1, 1, 1, 1), "cm"))
+      }, width = 500, height = 400)  # Adjust the width and height as needed
     })
   })
 }

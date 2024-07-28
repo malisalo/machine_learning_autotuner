@@ -3,9 +3,8 @@ library(bslib)
 library(shinycssloaders)
 
 # Define UI ----
-# Update the UI to include the bar plot
 ui <- page_sidebar(
-  title = "Maize Data ML Dashboard",
+  title = "Machine Learning Autotunner",
   sidebar = sidebar(
     class = "sidebar-container",
     div(
@@ -81,7 +80,7 @@ ui <- page_sidebar(
           condition = "input.model_selection.indexOf('create_gbm') !== -1",
           sliderInput(
             "models_amount_gbm",
-            "# of Gradient Boosting",
+            "# of Gradient Boostings",
             min = 0,
             max = 30,
             value = 15
@@ -91,7 +90,7 @@ ui <- page_sidebar(
           condition = "input.model_selection.indexOf('create_svm') !== -1",
           sliderInput(
             "models_amount_svm",
-            "# of Support Vector Models",
+            "# of SVMs",
             min = 0,
             max = 30,
             value = 15
@@ -102,7 +101,7 @@ ui <- page_sidebar(
         card_header("Train Set"),
         sliderInput(
           "Train_Set",
-          "Percentage %",
+          "Training Set %",
           min = 0,
           max = 100,
           value = 80
@@ -116,10 +115,7 @@ ui <- page_sidebar(
     id = "main_navset",
     nav_panel("Overview"),
     nav_panel("Dataset", tableOutput("data_preview")),
-    nav_panel("Model Results", uiOutput("model_results_ui")),
-    nav_panel("Model Graph", plotOutput("model_accuracy_plot", width = "100%")),
-    nav_panel("Model Code", uiOutput("model_code_ui", height = "100%")),
-    nav_panel("Variable Importance")
+    nav_panel("Model Graph", plotOutput("model_accuracy_plot", width = "100%"))
   ),
   tags$head(tags$style(
     HTML(
@@ -146,7 +142,15 @@ ui <- page_sidebar(
         top: 0;
         right: 0;
         bottom: 0;
-      }"
+      }
+      .model-results {
+      padding: 15px;
+      }
+      
+      .model-results h3, .model-results h4 {
+      margin-bottom: 20px;
+      }
+      "
     )
   ), tags$script(
     HTML(
@@ -176,4 +180,3 @@ ui <- page_sidebar(
     ),
   ))
 )
-
