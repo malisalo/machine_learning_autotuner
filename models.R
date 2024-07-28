@@ -6,14 +6,8 @@ library(caret)
 library(DALEX)
 
 # Gradient Boosting
-create_gbm <- function(data, predicting_var, training_split, models_amount) {
+create_gbm <- function(train, test, predicting_var, models_amount) {
   set.seed(123)
-  trainIndex <- createDataPartition(data[[predicting_var]],
-                                    p = training_split,
-                                    list = FALSE,
-                                    times = 1)
-  train <- data[trainIndex, ]
-  test <- data[-trainIndex, ]
   
   train_control <- trainControl(method = "cv", number = 5)
   
@@ -44,15 +38,8 @@ create_gbm <- function(data, predicting_var, training_split, models_amount) {
 }
 
 # Random Forest
-create_rf <- function(data, predicting_var, training_split, models_amount) {
+create_rf <- function(train, test, predicting_var, models_amount) {
   set.seed(123)
-  
-  trainIndex <- createDataPartition(data[[predicting_var]], 
-                                    p = training_split, 
-                                    list = FALSE, 
-                                    times = 1)
-  train <- data[trainIndex, ]
-  test <- data[-trainIndex, ]
   
   train_control <- trainControl(method = "cv", number = 5, search = "random")
   
@@ -81,14 +68,8 @@ create_rf <- function(data, predicting_var, training_split, models_amount) {
 }
 
 # K Nearest Neighbors
-create_knn <- function(data, predicting_var, training_split, models_amount) {
+create_knn <- function(train, test, predicting_var, models_amount) {
   set.seed(123)
-  trainIndex <- createDataPartition(data[[predicting_var]],
-                                    p = training_split,
-                                    list = FALSE,
-                                    times = 1)
-  train <- data[trainIndex, ]
-  test <- data[-trainIndex, ]
   
   train_control <- trainControl(method = "cv", number = 5, search = "grid")
   
@@ -113,37 +94,34 @@ create_knn <- function(data, predicting_var, training_split, models_amount) {
   )
 }
 
-# SVM Classifier
-create_svm <- function(data, predicting_var, training_split, models_amount) {
-  data[[predicting_var]] <- as.factor(data[[predicting_var]])
-  
+# SVM
+create_svm <- function(train, test, predicting_var, models_amount) {
   set.seed(123)
-  trainIndex <- createDataPartition(data[[predicting_var]],
-                                    p = training_split,
-                                    list = FALSE,
-                                    times = 1)
-  train <- data[trainIndex, ]
-  test <- data[-trainIndex, ]
   
-  train_control <- trainControl(method = "cv", number = 5)
+  train_control <- trainControl(method = "cv", number = 5, search = "grid")
   
   svm_model <- train(
     as.formula(paste(predicting_var, "~ .")),
     data = train,
     method = "svmRadial",
-    trControl = train_control,
-    tuneLength = models_amount
+    metric = "Accuracy",
+    tuneLength = models_amount,
+    trControl = train_control
   )
   
   print(svm_model$bestTune)
   
-  predictions <- predict(svm_model, newdata = test)
-  cm <- confusionMatrix(predictions, test[[predicting_var]])
-  f1_score <- calculate_f1_score(cm)
+  predictions_svm <- predict(svm_model, newdata = test)
+  cm_svm <- confusionMatrix(predictions_svm, test[[predicting_var]])
+  
+  # Variable importance for SVM
+  variable_importance <- varImp(svm_model, scale = FALSE)$importance
   
   list(
-    accuracy = round(cm$overall['Accuracy'] * 100, 2),
-    confusion_matrix = cm$table,
-    best_params = svm_model$bestTune
+    accuracy = round(cm_svm$overall['Accuracy'] * 100, 2),
+    confusion_matrix = cm_svm$table,
+    best_params = svm_model$bestTune,
+    variable_importance = variable_importance
   )
 }
+

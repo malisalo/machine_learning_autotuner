@@ -6,6 +6,7 @@ library(shinycssloaders)
 library(ggplot2)
 library(gridExtra)
 library(plotly)
+library(caret)
 
 # Source the models and code generation files
 source("models.R")
@@ -67,18 +68,18 @@ server <- function(input, output, session) {
   # Output: Display a preview of the dataframe
   output$data_preview <- renderDT({
     req(dataset())
-    datatable(dataset(), options = list(pageLength = 10, scrollX = TRUE), rownames=FALSE)
+    datatable(dataset(), options = list(pageLength = 10, scrollX = TRUE), rownames = FALSE)
   })
   
   # Helper function to process models
-  process_model <- function(model_name, data, predicting_var, train_split, model_amount) {
+  process_model <- function(model_name, train, test, predicting_var, model_amount) {
     model_func <- get(model_name)
-    result <- model_func(data, predicting_var, train_split, model_amount)
+    result <- model_func(train, test, predicting_var, model_amount)
     code_gen_func <- get(paste0("create_code_", sub("create_", "", model_name)))
     list(
       result = result,
       params = result$best_params,
-      code = code_gen_func(predicting_var, train_split, result$best_params),
+      code = code_gen_func(predicting_var, 0.8, result$best_params), # Pass training_split here
       has_variable_importance = "variable_importance" %in% names(result)
     )
   }
@@ -111,11 +112,28 @@ server <- function(input, output, session) {
           select(all_of(c(selected_features, predicting_var)))
       }
       
-      imputed_data <- perform_imputation(imputation_technique, df)
+      # Handle imputation technique
+      if (imputation_technique == "delete") {
+        # Remove NAs first
+        df <- df %>% na.omit()
+        set.seed(123)
+        trainIndex <- createDataPartition(df[[predicting_var]], p = training_split, list = FALSE, times = 1)
+        train <- df[trainIndex, ]
+        test <- df[-trainIndex, ]
+      } else {
+        set.seed(123)
+        df <- df %>% mutate_if(is.character, as.factor)
+        trainIndex <- createDataPartition(df[[predicting_var]], p = training_split, list = FALSE, times = 1)
+        train <- df[trainIndex, ]
+        test <- df[-trainIndex, ]
+        # Perform separate imputations on the training and test sets
+        train <- perform_imputation(imputation_technique, train)
+        test <- perform_imputation(imputation_technique, test)
+      }
       
       results <- lapply(selected_models, function(model) {
         incProgress(1 / length(selected_models), detail = paste(model_names[[model]], "is currently being trained"))
-        process_model(model, imputed_data, predicting_var, training_split, models_amount[[model]])
+        process_model(model, train, test, predicting_var, models_amount[[model]])
       })
       
       names(results) <- selected_models
@@ -230,4 +248,3 @@ server <- function(input, output, session) {
     })
   })
 }
-
