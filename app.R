@@ -62,6 +62,7 @@ ui <- page_sidebar(
         "Select Imputation Technique",
         choices = list(
           "MICE" = "mice_impute",
+          "Median" = "median_impute",
           "missForest" = "missForest_impute",
           "Delete Missing Values" = "delete_na"
         ),

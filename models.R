@@ -9,7 +9,7 @@ library(corrplot)
 library(reshape2)
 library(tidyverse)
 library(doParallel)
-library(parallel)  # Ensure parallel library is loaded
+library(parallel)
 
 # Function to create and train Random Forest model
 create_rf <- function(data, numerical_vars, categorical_vars, predicting_var, training_split) {
