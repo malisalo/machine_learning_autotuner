@@ -4,14 +4,6 @@ library(randomForest)
 library(gbm)
 library(caret)
 
-# Function to compute F1 score
-calculate_f1_score <- function(confusion_matrix) {
-  precision <- confusion_matrix$byClass['Pos Pred Value']
-  recall <- confusion_matrix$byClass['Sensitivity']
-  f1_score <- (2 * precision * recall) / (precision + recall)
-  return(f1_score)
-}
-
 # Gradient Boosting
 create_gbm <- function(data, predicting_var, training_split, models_amount) {
   set.seed(123)
@@ -43,7 +35,6 @@ create_gbm <- function(data, predicting_var, training_split, models_amount) {
   
   list(
     accuracy = round(cm_gbm$overall['Accuracy'] * 100, 2),
-    f1_score = round(f1_score, 2),
     confusion_matrix = cm_gbm$table,
     best_params = best_params
   )
@@ -79,7 +70,6 @@ create_rf <- function(data, predicting_var, training_split, models_amount) {
   
   list(
     accuracy = round(cm_rf$overall['Accuracy'] * 100, 2),
-    f1_score = round(f1_score, 2),
     confusion_matrix = cm_rf$table,
     best_params = rf_model$bestTune
   )
@@ -114,7 +104,6 @@ create_knn <- function(data, predicting_var, training_split, models_amount) {
   
   list(
     accuracy = round(cm_knn$overall['Accuracy'] * 100, 2),
-    f1_score = round(f1_score, 2),
     confusion_matrix = cm_knn$table,
     best_params = knn_tuned$bestTune
   )
@@ -150,7 +139,6 @@ create_svm <- function(data, predicting_var, training_split, models_amount) {
   
   list(
     accuracy = round(cm$overall['Accuracy'] * 100, 2),
-    f1_score = round(f1_score, 2),
     confusion_matrix = cm$table,
     best_params = svm_model$bestTune
   )
