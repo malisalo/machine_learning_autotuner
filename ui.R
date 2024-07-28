@@ -36,6 +36,7 @@ ui <- page_sidebar(
         "Select Imputation Technique",
         choices = list(
           "MICE" = "mice_impute",
+          "Median" = "median_impute",
           "missForest" = "missForest_impute",
           "Delete Missing Values" = "delete_na"
         ),
@@ -113,10 +114,11 @@ ui <- page_sidebar(
   ),
   navset_card_underline(
     id = "main_navset",
+    nav_panel("Overview"),
     nav_panel("Dataset", tableOutput("data_preview")),
     nav_panel("Model Results", uiOutput("model_results_ui")),
     nav_panel("Model Graph", plotOutput("model_accuracy_plot", width = "100%")),
-    nav_panel("Model Code", uiOutput("model_code_ui")),
+    nav_panel("Model Code", uiOutput("model_code_ui", height = "100%")),
     nav_panel("Variable Importance")
   ),
   tags$head(tags$style(

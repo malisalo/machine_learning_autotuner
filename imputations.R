@@ -13,6 +13,14 @@ perform_imputation <- function(technique, data) {
   return(imputed_data)
 }
 
+# Perform Median imputation
+median_impute <- function(data) {
+  numerical_columns <- names(data)[sapply(data, is.numeric)]
+  data <- data %>%
+    mutate_at(vars(one_of(numerical_columns)), ~ifelse(is.na(.), median(., na.rm = TRUE), .))
+  return(data)
+}
+
 # Perform MICE imputation
 mice_impute <- function(data) {
   imputed_data <- mice(
