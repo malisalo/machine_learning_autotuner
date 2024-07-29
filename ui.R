@@ -6,7 +6,6 @@ library(shinycssloaders)
 # Define UI ----
 ui <- page_sidebar(
   title = "Machine Learning Autotunner",
-  bg = "#1fa853",
   sidebar = sidebar(
     class = "sidebar-container",
     div(
