@@ -35,7 +35,9 @@ print(conf_matrix)
   return(svm_code)
 }
 
-create_code_rf <- function(predicting_var, training_split, best_params) {
+create_code_rf <- function(predicting_var,
+                           training_split,
+                           best_params) {
   rf_code <- glue::glue(
     "
 # Load necessary libraries

@@ -68,18 +68,27 @@ server <- function(input, output, session) {
   # Output: Display a preview of the dataframe
   output$data_preview <- renderDT({
     req(dataset())
-    datatable(dataset(), options = list(pageLength = 10, scrollX = TRUE), rownames = FALSE)
+    datatable(
+      dataset(),
+      options = list(pageLength = 10, scrollX = TRUE),
+      rownames = FALSE
+    )
   })
   
   # Helper function to process models
-  process_model <- function(model_name, train, test, predicting_var, model_amount) {
+  process_model <- function(model_name,
+                            train,
+                            test,
+                            predicting_var,
+                            model_amount) {
     model_func <- get(model_name)
     result <- model_func(train, test, predicting_var, model_amount)
     code_gen_func <- get(paste0("create_code_", sub("create_", "", model_name)))
     list(
       result = result,
       params = result$best_params,
-      code = code_gen_func(predicting_var, 0.8, result$best_params), # Pass training_split here
+      code = code_gen_func(predicting_var, 0.8, result$best_params),
+      # Pass training_split here
       has_variable_importance = "variable_importance" %in% names(result)
     )
   }
@@ -109,7 +118,9 @@ server <- function(input, output, session) {
       selected_features <- input$Features
       if (length(selected_features) > 0) {
         df <- df %>%
-          select(all_of(c(selected_features, predicting_var)))
+          select(all_of(c(
+            selected_features, predicting_var
+          )))
       }
       
       # Handle imputation technique
@@ -117,13 +128,19 @@ server <- function(input, output, session) {
         # Remove NAs first
         df <- df %>% na.omit()
         set.seed(123)
-        trainIndex <- createDataPartition(df[[predicting_var]], p = training_split, list = FALSE, times = 1)
+        trainIndex <- createDataPartition(df[[predicting_var]],
+                                          p = training_split,
+                                          list = FALSE,
+                                          times = 1)
         train <- df[trainIndex, ]
         test <- df[-trainIndex, ]
       } else {
         set.seed(123)
         df <- df %>% mutate_if(is.character, as.factor)
-        trainIndex <- createDataPartition(df[[predicting_var]], p = training_split, list = FALSE, times = 1)
+        trainIndex <- createDataPartition(df[[predicting_var]],
+                                          p = training_split,
+                                          list = FALSE,
+                                          times = 1)
         train <- df[trainIndex, ]
         test <- df[-trainIndex, ]
         # Perform separate imputations on the training and test sets
@@ -132,7 +149,10 @@ server <- function(input, output, session) {
       }
       
       results <- lapply(selected_models, function(model) {
-        incProgress(1 / length(selected_models), detail = paste(model_names[[model]], "is currently being trained"))
+        incProgress(
+          1 / length(selected_models),
+          detail = paste(model_names[[model]], "is currently being trained")
+        )
         process_model(model, train, test, predicting_var, models_amount[[model]])
       })
       
@@ -150,23 +170,27 @@ server <- function(input, output, session) {
           tabPanel(
             title = model_names[model],
             value = tab_id,
-            div(class = "model-results",
-                h3(model_names[model]),
-                h4(paste("Accuracy:", model_results[[model]]$accuracy, "%")),
-                plotlyOutput(paste0("confusion_matrix_", model), height = "400px"),
-                hr(),
-                h4("Variable Importance Chart"),
-                if (has_variable_importance[[model]]) {
-                  plotOutput(paste0("var_importance_", model))
-                } else {
-                  tags$p("Variable importance not available for this model.")
-                },
-                hr(),
-                h4("Generated Model Code"),
-                verbatimTextOutput(paste0("code_", model))
+            div(
+              class = "model-results",
+              h3(model_names[model]),
+              h4(paste(
+                "Accuracy:", model_results[[model]]$accuracy, "%"
+              )),
+              plotlyOutput(paste0("confusion_matrix_", model), height = "400px"),
+              hr(),
+              h4("Variable Importance Chart"),
+              if (has_variable_importance[[model]]) {
+                plotOutput(paste0("var_importance_", model))
+              } else {
+                tags$p("Variable importance not available for this model.")
+              },
+              hr(),
+              h4("Generated Model Code"),
+              verbatimTextOutput(paste0("code_", model))
             )
           ),
-          target = "Model Graph", # Insert the new tab before "Model Graph" tab
+          target = "Model Graph",
+          # Insert the new tab before "Model Graph" tab
           position = "before"
         )
         
@@ -179,7 +203,8 @@ server <- function(input, output, session) {
             colnames(cm) <- c("Prediction", "Reference", "Frequency")
             p <- ggplot(cm, aes(x = Reference, y = Prediction)) +
               geom_tile(aes(fill = Frequency), color = "white") +
-              scale_fill_gradient(low = "white", high = "deepskyblue3") +
+              scale_fill_gradient(low = "white",
+                                  high = "deepskyblue3") +
               geom_text(aes(label = Frequency), vjust = 1) +
               theme_minimal() +
               ggtitle(paste(model_names[model_name], "Confusion Matrix")) +
@@ -196,16 +221,22 @@ server <- function(input, output, session) {
             result <- model_results[[model_name]]
             output[[paste0("var_importance_", model_name)]] <- renderPlot({
               var_importance <- result$variable_importance
-              var_importance_df <- data.frame(
-                Feature = rownames(var_importance),
-                Importance = var_importance[, 1]
-              )
+              var_importance_df <- data.frame(Feature = rownames(var_importance),
+                                              Importance = var_importance[, 1])
               var_importance_df <- var_importance_df[order(var_importance_df$Importance, decreasing = TRUE), ]
-              ggplot(var_importance_df, aes(x = reorder(Feature, Importance), y = Importance)) +
+              ggplot(var_importance_df,
+                     aes(
+                       x = reorder(Feature, Importance),
+                       y = Importance
+                     )) +
                 geom_bar(stat = "identity", fill = "steelblue") +
                 coord_flip() +
                 theme_minimal() +
-                labs(title = paste(model_names[model_name], "Variable Importance"), x = "Features", y = "Importance")
+                labs(
+                  title = paste(model_names[model_name], "Variable Importance"),
+                  x = "Features",
+                  y = "Importance"
+                )
             })
           })
         }
@@ -230,10 +261,8 @@ server <- function(input, output, session) {
         model_labels <- model_names[selected_models]
         
         # Create data frame
-        accuracy_df <- data.frame(
-          Model = factor(model_labels, levels = model_labels),
-          Accuracy = accuracies
-        )
+        accuracy_df <- data.frame(Model = factor(model_labels, levels = model_labels),
+                                  Accuracy = accuracies)
         
         # Plot accuracies
         ggplot(accuracy_df, aes(x = Model, y = Accuracy)) +

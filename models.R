@@ -6,7 +6,10 @@ library(caret)
 library(DALEX)
 
 # Gradient Boosting
-create_gbm <- function(train, test, predicting_var, models_amount) {
+create_gbm <- function(train,
+                       test,
+                       predicting_var,
+                       models_amount) {
   set.seed(123)
   
   train_control <- trainControl(method = "cv", number = 5)
@@ -38,10 +41,15 @@ create_gbm <- function(train, test, predicting_var, models_amount) {
 }
 
 # Random Forest
-create_rf <- function(train, test, predicting_var, models_amount) {
+create_rf <- function(train,
+                      test,
+                      predicting_var,
+                      models_amount) {
   set.seed(123)
   
-  train_control <- trainControl(method = "cv", number = 5, search = "random")
+  train_control <- trainControl(method = "cv",
+                                number = 5,
+                                search = "random")
   
   rf_model <- train(
     as.formula(paste(predicting_var, "~ .")),
@@ -68,10 +76,15 @@ create_rf <- function(train, test, predicting_var, models_amount) {
 }
 
 # K Nearest Neighbors
-create_knn <- function(train, test, predicting_var, models_amount) {
+create_knn <- function(train,
+                       test,
+                       predicting_var,
+                       models_amount) {
   set.seed(123)
   
-  train_control <- trainControl(method = "cv", number = 5, search = "grid")
+  train_control <- trainControl(method = "cv",
+                                number = 5,
+                                search = "grid")
   
   knn_tuned <- train(
     as.formula(paste(predicting_var, "~ .")),
@@ -95,10 +108,15 @@ create_knn <- function(train, test, predicting_var, models_amount) {
 }
 
 # SVM
-create_svm <- function(train, test, predicting_var, models_amount) {
+create_svm <- function(train,
+                       test,
+                       predicting_var,
+                       models_amount) {
   set.seed(123)
   
-  train_control <- trainControl(method = "cv", number = 5, search = "grid")
+  train_control <- trainControl(method = "cv",
+                                number = 5,
+                                search = "grid")
   
   svm_model <- train(
     as.formula(paste(predicting_var, "~ .")),
@@ -124,4 +142,3 @@ create_svm <- function(train, test, predicting_var, models_amount) {
     variable_importance = variable_importance
   )
 }
-
