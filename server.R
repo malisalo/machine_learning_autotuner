@@ -33,7 +33,7 @@ server <- function(input, output, session) {
     file <- input$file$datapath
     save_path <- file.path(save_dir, input$file$name)
     file.copy(file, save_path, overwrite = TRUE)
-    read.csv(save_path, stringsAsFactors = FALSE)   
+    read.csv(save_path, stringsAsFactors = FALSE)
   })
   
   # Update UI inputs based on dataset column names
@@ -238,13 +238,19 @@ server <- function(input, output, session) {
         # Plot accuracies
         ggplot(accuracy_df, aes(x = Model, y = Accuracy)) +
           geom_bar(stat = "identity", fill = "lightblue") +
-          ggtitle("Best Parameter Accuracies") +
-          xlab("Models") +
-          ylab("Accuracy (%)") +
+          ggtitle("Model Accuracies") +
+          xlab("Model") +
+          ylab("Accuracy") +
           ylim(0, 100) +
           theme_classic() +
-          theme(plot.margin = unit(c(1, 1, 1, 1), "cm"))
-      }, width = 500, height = 400)  # Adjust the width and height as needed
+          theme(axis.text.x = element_text(angle = 45, hjust = 1))
+      })
     })
+  })
+  
+  # Other server logic for model tabs and outputs
+  observe({
+    req(dataset())
+    updateTabsetPanel(session, "main_navset", selected = "Dataset")
   })
 }
