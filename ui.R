@@ -1,3 +1,4 @@
+library(DT)
 library(shiny)
 library(bslib)
 library(shinycssloaders)
