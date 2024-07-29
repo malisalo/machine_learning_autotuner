@@ -5,6 +5,7 @@ library(shinycssloaders)
 # Define UI ----
 ui <- page_sidebar(
   title = "Machine Learning Autotunner",
+  bg="#1fa853",
   sidebar = sidebar(
     class = "sidebar-container",
     div(
@@ -113,7 +114,22 @@ ui <- page_sidebar(
   ),
   navset_card_underline(
     id = "main_navset",
-    nav_panel("Overview"),
+    nav_panel("Overview",
+              fluidRow(
+                column(12,
+                       img(src = "autotunner_logo.svg", height = "350px", alt = "Logo", style = "display: block; margin-left: auto; margin-right: auto;"),
+                       h2("Welcome to Machine Learning Autotuner"),
+                       p("This application helps you train and tune machine learning models with ease. Upload your dataset, select features, choose models, and let the application do the rest."),
+                       p("Features include:"),
+                       tags$ul(
+                         tags$li("Data Imputation Techniques"),
+                         tags$li("Multiple Machine Learning Models"),
+                         tags$li("Hyperparameter Tuning"),
+                         tags$li("Model Evaluation Metrics")
+                       )
+                )
+              )
+    ),
     nav_panel("Dataset", DTOutput("data_preview")),
     nav_panel("Model Graph", plotOutput("model_accuracy_plot", width = "100%"))
   ),
@@ -144,12 +160,27 @@ ui <- page_sidebar(
         bottom: 0;
       }
       .model-results {
-      padding: 15px;
+        padding: 15px;
       }
-      
       .model-results h3, .model-results h4 {
-      margin-bottom: 20px;
+        margin-bottom: 20px;
       }
+      .navbar.navbar-static-top {
+        background-color: #05322e; /* Background color for the title section */
+        color: #ffffff; /* Text color */
+      }
+      .bslib-page-title.navbar-brand {
+        color: #ffffff; /* Font color for the h1 tag */
+          font-size: 1rem; /* Adjust font size if needed */
+          font-weight: bold; /* Make the font bold */
+          margin: 0; /* Remove default margin if needed */
+          padding: 10px 0; /* Add padding if needed */
+      }
+        .btn.btn-default.btn-file:hover,
+        .btn.btn-default.action-button.shiny-bound-input:hover {
+        background-color: #05322e; /* Background color on hover */
+        color: #ffffff; /* Text color on hover */
+        }
       "
     )
   ), tags$script(
