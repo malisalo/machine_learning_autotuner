@@ -3,14 +3,13 @@ library(shiny)
 library(bslib)
 library(shinycssloaders)
 
-# Define UI ----
+# Define UI
 ui <- page_sidebar(
   title = "Machine Learning Autotuner",
   sidebar = sidebar(
     class = "sidebar-container",
     div(
       class = "sidebar-content",
-      # Input: Select a file ----
       fileInput(
         "file",
         "Choose CSV File",
@@ -137,11 +136,7 @@ ui <- page_sidebar(
         tags$li("Model Evaluation Metrics")
       )
     ))),
-    nav_panel("Dataset", DTOutput("data_preview")),
-    nav_panel(
-      "Model Graph",
-      plotOutput("model_accuracy_plot", width = "100%")
-    )
+    nav_panel("Dataset", DTOutput("data_preview"))
   ),
   tags$head(tags$style(
     HTML(
