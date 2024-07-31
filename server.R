@@ -88,8 +88,8 @@ server <- function(input, output, session) {
       result = result,
       params = result$best_params,
       code = code_gen_func(predicting_var, 0.8, result$best_params),
-      # Pass training_split here
-      has_variable_importance = "variable_importance" %in% names(result)
+      has_variable_importance = "variable_importance" %in% names(result),
+      accuracy_sd = result$accuracy_sd
     )
   }
   
@@ -125,7 +125,6 @@ server <- function(input, output, session) {
       
       # Handle imputation technique
       if (imputation_technique == "delete") {
-        # Remove NAs first
         df <- df %>% na.omit()
         set.seed(123)
         trainIndex <- createDataPartition(df[[predicting_var]],
@@ -143,7 +142,6 @@ server <- function(input, output, session) {
                                           times = 1)
         train <- df[trainIndex, ]
         test <- df[-trainIndex, ]
-        # Perform separate imputations on the training and test sets
         train <- perform_imputation(imputation_technique, train)
         test <- perform_imputation(imputation_technique, test)
       }
@@ -161,6 +159,7 @@ server <- function(input, output, session) {
       model_params <- lapply(results, `[[`, "params")
       model_code <- lapply(results, `[[`, "code")
       has_variable_importance <- lapply(results, `[[`, "has_variable_importance")
+      accuracy_sds <- lapply(results, `[[`, "accuracy_sd")
       
       # Dynamically add tabs for each model
       lapply(names(model_results), function(model) {
@@ -189,12 +188,10 @@ server <- function(input, output, session) {
               verbatimTextOutput(paste0("code_", model))
             )
           ),
-          target = "Model Graph",
-          # Insert the new tab before "Model Graph" tab
-          position = "before"
+          target = NULL,
+          position = "after"
         )
         
-        # Render confusion matrices as heatmaps using plotly
         local({
           model_name <- model
           result <- model_results[[model_name]]
@@ -203,8 +200,7 @@ server <- function(input, output, session) {
             colnames(cm) <- c("Prediction", "Reference", "Frequency")
             p <- ggplot(cm, aes(x = Reference, y = Prediction)) +
               geom_tile(aes(fill = Frequency), color = "white") +
-              scale_fill_gradient(low = "white",
-                                  high = "deepskyblue3") +
+              scale_fill_gradient(low = "white", high = "deepskyblue3") +
               geom_text(aes(label = Frequency), vjust = 1) +
               theme_minimal() +
               ggtitle(paste(model_names[model_name], "Confusion Matrix")) +
@@ -214,7 +210,6 @@ server <- function(input, output, session) {
           })
         })
         
-        # Render variable importance if available
         if (has_variable_importance[[model]]) {
           local({
             model_name <- model
@@ -241,7 +236,6 @@ server <- function(input, output, session) {
           })
         }
         
-        # Render model code
         local({
           model_name <- model
           code <- model_code[[model_name]]
@@ -251,32 +245,59 @@ server <- function(input, output, session) {
         })
       })
       
-      # Render the bar graph of best parameter accuracies
+      insertTab(
+        inputId = "main_navset",
+        tabPanel(
+          title = "Overall Performance",
+          value = "tab_overall_performance",
+          plotOutput("model_accuracy_plot", width = "100%")
+        ),
+        target = NULL,
+        position = "after"
+      )
+      
       output$model_accuracy_plot <- renderPlot({
         accuracies <- sapply(selected_models, function(model) {
           result <- model_results[[model]]
-          result$accuracy
+          if (!is.null(result$accuracy)) {
+            result$accuracy
+          } else {
+            NA
+          }
+        })
+        
+        accuracy_sds <- sapply(selected_models, function(model) {
+          result <- model_results[[model]]
+          if (!is.null(result$accuracy_sd)) {
+            result$accuracy_sd * 100  # Convert standard deviation to percentage
+          } else {
+            NA
+          }
         })
         
         model_labels <- model_names[selected_models]
         
-        # Create data frame
-        accuracy_df <- data.frame(Model = factor(model_labels, levels = model_labels),
-                                  Accuracy = accuracies)
+        accuracy_df <- data.frame(
+          Model = factor(model_labels, levels = model_labels),
+          Accuracy = accuracies,
+          Accuracy_SD = accuracy_sds
+        )
         
-        # Plot accuracies
         ggplot(accuracy_df, aes(x = Model, y = Accuracy)) +
           geom_bar(stat = "identity", fill = "lightblue") +
-          ggtitle("Model Accuracies") +
+          geom_errorbar(
+            aes(ymin = Accuracy - Accuracy_SD, ymax = Accuracy + Accuracy_SD),
+            width = 0.2
+          ) +
+          ggtitle("Model Accuracies with Error Bars") +
           xlab("Model") +
-          ylab("Accuracy") +
+          ylab("Accuracy (%)") +
           ylim(0, 100) +
           theme_classic() +
           theme(axis.text.x = element_text(angle = 45, hjust = 1))
       })
     })
   })
-  
   # Other server logic for model tabs and outputs
   observe({
     req(dataset())
