@@ -1,9 +1,13 @@
 library(glue)
 library(dplyr)
 
-create_code_svm <- function(predicting_var,
-                            training_split,
-                            best_params) {
+create_code_svm <- function(predicting_var, training_split, best_params) {
+  # Ensure best_params is a list with named elements
+  if (!is.list(best_params) || !all(c("C", "sigma") %in% names(best_params))) {
+    stop("best_params must be a list with elements 'C' and 'sigma'.")
+  }
+  
+  # Create the SVM code template with the best parameters
   svm_code <- glue::glue(
     "
 # Load necessary libraries
@@ -32,8 +36,10 @@ conf_matrix <- confusionMatrix(predictions, test_data${predicting_var})
 print(conf_matrix)
 "
   )
+  
   return(svm_code)
 }
+
 
 create_code_rf <- function(predicting_var,
                            training_split,
