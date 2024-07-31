@@ -1,0 +1,17 @@
+install.packages(c(
+  "DT",
+  "shiny",
+  "bslib",
+  "shinycssloaders",
+  "dplyr",
+  "ggplot2",
+  "gridExtra",
+  "plotly",
+  "caret",
+  "e1071",
+  "randomForest",
+  "gbm",
+  "DALEX",
+  "ranger",
+  "glue"
+))
