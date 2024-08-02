@@ -167,7 +167,7 @@ create_rf <- function(train, test, predicting_var, models_amount) {
   list(
     accuracy = round(cm_rf$overall['Accuracy'] * 100, 2),
     confusion_matrix = cm_rf$table,
-    best_params = best_combination[, c("mtry", "splitrule", "min.node.size")],
+    best_params = best_combination[, c("mtry", "splitrule", "min.node.size", "num.trees")],
     variable_importance = variable_importance,
     cv_results = accuracies,
     accuracy_sd = accuracy_sd

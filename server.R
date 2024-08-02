@@ -87,7 +87,7 @@ server <- function(input, output, session) {
     list(
       result = result,
       params = result$best_params,
-      code = code_gen_func(predicting_var, 0.8, result$best_params),
+      code = code_gen_func(predicting_var, 0.8, result$best_params, input$Imputation, input$Features),
       has_variable_importance = "variable_importance" %in% names(result),
       accuracy_sd = result$accuracy_sd
     )
