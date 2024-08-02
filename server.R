@@ -76,18 +76,14 @@ server <- function(input, output, session) {
   })
   
   # Helper function to process models
-  process_model <- function(model_name,
-                            train,
-                            test,
-                            predicting_var,
-                            model_amount) {
+  process_model <- function(model_name, train, test, predicting_var, model_amount) {
     model_func <- get(model_name)
     result <- model_func(train, test, predicting_var, model_amount)
     code_gen_func <- get(paste0("create_code_", sub("create_", "", model_name)))
     list(
       result = result,
       params = result$best_params,
-      code = code_gen_func(predicting_var, 0.8, result$best_params),
+      code = code_gen_func(predicting_var, 0.8, result$best_params, input$Imputation, input$Features),
       has_variable_importance = "variable_importance" %in% names(result),
       accuracy_sd = result$accuracy_sd
     )
@@ -95,12 +91,14 @@ server <- function(input, output, session) {
   
   observeEvent(input$run_model, {
     withProgress(message = 'Training models...', value = 0, {
-      # Remove existing model tabs
+      # Remove existing model tabs and the overall performance tab
       existing_tabs <- names(model_names)
       lapply(existing_tabs, function(model) {
         tab_id <- paste0("tab_", model)
         removeTab(inputId = "main_navset", target = tab_id)
       })
+      
+      removeTab(inputId = "main_navset", target = "tab_overall_performance")
       
       df <- dataset()
       predicting_var <- input$Predictive
@@ -118,28 +116,20 @@ server <- function(input, output, session) {
       selected_features <- input$Features
       if (length(selected_features) > 0) {
         df <- df %>%
-          select(all_of(c(
-            selected_features, predicting_var
-          )))
+          select(all_of(c(selected_features, predicting_var)))
       }
       
       # Handle imputation technique
       if (imputation_technique == "delete") {
         df <- df %>% na.omit()
         set.seed(123)
-        trainIndex <- createDataPartition(df[[predicting_var]],
-                                          p = training_split,
-                                          list = FALSE,
-                                          times = 1)
+        trainIndex <- createDataPartition(df[[predicting_var]], p = training_split, list = FALSE, times = 1)
         train <- df[trainIndex, ]
         test <- df[-trainIndex, ]
       } else {
         set.seed(123)
         df <- df %>% mutate_if(is.character, as.factor)
-        trainIndex <- createDataPartition(df[[predicting_var]],
-                                          p = training_split,
-                                          list = FALSE,
-                                          times = 1)
+        trainIndex <- createDataPartition(df[[predicting_var]], p = training_split, list = FALSE, times = 1)
         train <- df[trainIndex, ]
         test <- df[-trainIndex, ]
         train <- perform_imputation(imputation_technique, train)
@@ -147,10 +137,7 @@ server <- function(input, output, session) {
       }
       
       results <- lapply(selected_models, function(model) {
-        incProgress(
-          1 / length(selected_models),
-          detail = paste(model_names[[model]], "is currently being trained")
-        )
+        incProgress(1 / length(selected_models), detail = paste(model_names[[model]], "is currently being trained"))
         process_model(model, train, test, predicting_var, models_amount[[model]])
       })
       
@@ -172,9 +159,7 @@ server <- function(input, output, session) {
             div(
               class = "model-results",
               h3(model_names[model]),
-              h4(paste(
-                "Accuracy:", model_results[[model]]$accuracy, "%"
-              )),
+              h4(paste("Accuracy:", model_results[[model]]$accuracy, "%")),
               plotlyOutput(paste0("confusion_matrix_", model), height = "400px"),
               hr(),
               h4("Variable Importance Chart"),
@@ -216,22 +201,13 @@ server <- function(input, output, session) {
             result <- model_results[[model_name]]
             output[[paste0("var_importance_", model_name)]] <- renderPlot({
               var_importance <- result$variable_importance
-              var_importance_df <- data.frame(Feature = rownames(var_importance),
-                                              Importance = var_importance[, 1])
+              var_importance_df <- data.frame(Feature = rownames(var_importance), Importance = var_importance[, 1])
               var_importance_df <- var_importance_df[order(var_importance_df$Importance, decreasing = TRUE), ]
-              ggplot(var_importance_df,
-                     aes(
-                       x = reorder(Feature, Importance),
-                       y = Importance
-                     )) +
+              ggplot(var_importance_df, aes(x = reorder(Feature, Importance), y = Importance)) +
                 geom_bar(stat = "identity", fill = "steelblue") +
                 coord_flip() +
                 theme_minimal() +
-                labs(
-                  title = paste(model_names[model_name], "Variable Importance"),
-                  x = "Features",
-                  y = "Importance"
-                )
+                labs(title = paste(model_names[model_name], "Variable Importance"), x = "Features", y = "Importance")
             })
           })
         }
@@ -245,6 +221,7 @@ server <- function(input, output, session) {
         })
       })
       
+      # Add the new Overall Performance tab
       insertTab(
         inputId = "main_navset",
         tabPanel(
@@ -256,6 +233,7 @@ server <- function(input, output, session) {
         position = "after"
       )
       
+      # Update the Overall Performance plot
       output$model_accuracy_plot <- renderPlot({
         accuracies <- sapply(selected_models, function(model) {
           result <- model_results[[model]]
@@ -285,10 +263,7 @@ server <- function(input, output, session) {
         
         ggplot(accuracy_df, aes(x = Model, y = Accuracy)) +
           geom_bar(stat = "identity", fill = "lightblue") +
-          geom_errorbar(
-            aes(ymin = Accuracy - Accuracy_SD, ymax = Accuracy + Accuracy_SD),
-            width = 0.2
-          ) +
+          geom_errorbar(aes(ymin = Accuracy - Accuracy_SD, ymax = Accuracy + Accuracy_SD), width = 0.2) +
           ggtitle("Model Accuracies with Error Bars") +
           xlab("Model") +
           ylab("Accuracy (%)") +
@@ -298,6 +273,7 @@ server <- function(input, output, session) {
       })
     })
   })
+  
   # Other server logic for model tabs and outputs
   observe({
     req(dataset())

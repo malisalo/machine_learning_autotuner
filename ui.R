@@ -37,12 +37,12 @@ ui <- page_sidebar(
         inputId = "Imputation",
         "Select Imputation Technique",
         choices = list(
-          "MICE" = "mice_impute",
+          "Deletion" = "delete_na",
+          "MICE (Multivariate Imputation by Chained Equations)" = "mice_impute",
           "Median" = "median_impute",
-          "missForest" = "missForest_impute",
-          "Delete Missing Values" = "delete_na"
+          "missForest" = "missForest_impute"
         ),
-        selected = "mice_impute"
+        selected = "delete_na"
       ),
       card(
         card_header("Select Models to Train"),
@@ -65,8 +65,8 @@ ui <- page_sidebar(
             "models_amount_rf",
             "# of Random Forests",
             min = 0,
-            max = 200,
-            value = 50
+            max = 100,
+            value = 25
           )
         ),
         conditionalPanel(
@@ -75,8 +75,8 @@ ui <- page_sidebar(
             "models_amount_knn",
             "# of K Nearest Neighbors",
             min = 0,
-            max = 200,
-            value = 125
+            max = 100,
+            value = 25
           )
         ),
         conditionalPanel(
@@ -85,8 +85,8 @@ ui <- page_sidebar(
             "models_amount_gbm",
             "# of Gradient Boostings",
             min = 0,
-            max = 200,
-            value = 15
+            max = 100,
+            value = 25
           )
         ),
         conditionalPanel(
@@ -95,8 +95,8 @@ ui <- page_sidebar(
             "models_amount_svm",
             "# of SVMs",
             min = 0,
-            max = 200,
-            value = 15
+            max = 100,
+            value = 25
           )
         )
       ),
