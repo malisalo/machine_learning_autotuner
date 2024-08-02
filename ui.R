@@ -38,7 +38,7 @@ ui <- page_sidebar(
         "Select Imputation Technique",
         choices = list(
           "Deletion" = "delete_na",
-          "MICE" = "mice_impute",
+          "MICE (Multivariate Imputation by Chained Equations)" = "mice_impute",
           "Median" = "median_impute",
           "missForest" = "missForest_impute"
         ),
